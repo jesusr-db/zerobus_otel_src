@@ -657,6 +657,11 @@ services:
       - POSTGRES_PORT
       - POSTGRES_PASSWORD
       - GOMEMLIMIT=160MiB
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${DATABRICKS_OTLP_ENDPOINT}
+      # Add authentication if needed
+      - OTEL_EXPORTER_OTLP_HEADERS=content-type=application/x-protobuf,Authorization=Bearer ${DATABRICKS_API_TOKEN},X-Databricks-UC-Table-Name=${DATABRICKS_UC_TABLE_SPANS}
+      - OTEL_SERVICE_NAME=test-app
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 
   # Prometheus
   prometheus:

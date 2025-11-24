@@ -7,12 +7,36 @@
 ## Example configuration for sending data to your own OTLP HTTP backend
 ## Note: the spanmetrics exporter must be included in the exporters array
 ## if overriding the traces pipeline.
-##
-#  exporters:
-#    otlphttp/example:
-#      endpoint: <your-endpoint-url>
-#
-#  service:
-#    pipelines:
-#      traces:
-#        exporters: [spanmetrics, otlphttp/example]
+ exporters:
+   otlphttp/traces:
+    endpoint: ${env:DATABRICKS_OTEL_ENDPOINT}
+    headers:
+      content-type: application/x-protobuf
+      X-Databricks-UC-Table-Name: ${env:DATABRICKS_UC_TABLE_SPANS}
+      Authorization: Bearer ${env:DATABRICKS_API_TOKEN}
+   otlphttp/logs:
+    endpoint: ${env:DATABRICKS_OTEL_ENDPOINT}
+    headers:
+      content-type: application/x-protobuf
+      X-Databricks-UC-Table-Name: ${env:DATABRICKS_UC_TABLE_LOGS}
+      Authorization: Bearer ${env:DATABRICKS_API_TOKEN}
+   otlphttp/metrics:
+    endpoint: ${env:DATABRICKS_OTEL_ENDPOINT}
+    headers:
+      content-type: application/x-protobuf
+      X-Databricks-UC-Table-Name: ${env:DATABRICKS_UC_TABLE_METRICS}
+      Authorization: Bearer ${env:DATABRICKS_API_TOKEN}
+
+ service:
+   pipelines:
+     traces:
+       exporters: [spanmetrics, otlphttp/traces]
+     logs:
+       exporters: [otlphttp/logs]
+     metrics:
+       exporters: [otlphttp/metrics]
+
+
+
+
+

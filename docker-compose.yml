@@ -824,6 +824,15 @@ services:
       - POSTGRES_PORT
       - POSTGRES_PASSWORD
       - GOMEMLIMIT=160MiB
+      # - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=${DATABRICKS_TRACES_ENDPOINT}
+      # - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${DATABRICKS_METRICS_ENDPOINT}
+      # - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=${DATABRICKS_LOGS_ENDPOINT}
+      # - OTEL_EXPORTER_OTLP_LOGS_HEADERS=content-type=application/x-protobuf,Authorization=Bearer ${DATABRICKS_API_TOKEN},X-Databricks-UC-Table-Name=${DATABRICKS_UC_TABLE_LOGS}
+      # - OTEL_EXPORTER_OTLP_METRICS_HEADERS=content-type=application/x-protobuf,Authorization=Bearer ${DATABRICKS_API_TOKEN},X-Databricks-UC-Table-Name=${DATABRICKS_UC_TABLE_METRICS}
+      # - OTEL_EXPORTER_OTLP_TRACES_HEADERS=content-type=application/x-protobuf,Authorization=Bearer ${DATABRICKS_API_TOKEN},X-Databricks-UC-Table-Name=${DATABRICKS_UC_TABLE_SPANS}
+      # - OTEL_SERVICE_NAME=test-app
+      # - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+
 
   # Prometheus
   prometheus:

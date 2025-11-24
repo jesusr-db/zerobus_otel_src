@@ -134,6 +134,12 @@ exporters:
       endpoint: "http://opensearch:9200"
       tls:
         insecure: true
+  # otlphttp/logs:
+  #   endpoint: ${env:DATABRICKS_LOGS_ENDPOINT}
+    # headers:
+    #   content-type: application/x-protobuf
+    #   X-Databricks-UC-Table-Name: ${env:DATABRICKS_UC_TABLE_LOGS}
+    #   Authorization: "Bearer ${env:DATABRICKS_API_TOKEN}"
 processors:
   batch:
   memory_limiter:
@@ -161,13 +167,14 @@ service:
       processors: [resourcedetection, memory_limiter, transform, batch]
       exporters: [otlp, debug, spanmetrics]
     metrics:
-      receivers: [docker_stats, httpcheck/frontend-proxy, hostmetrics, nginx, otlp, postgresql, redis, spanmetrics]
+      receivers: [httpcheck/frontend-proxy, hostmetrics, nginx, otlp, postgresql, redis, spanmetrics]
       processors: [resourcedetection, memory_limiter, batch]
       exporters: [otlphttp/prometheus, debug]
     logs:
       receivers: [otlp]
       processors: [resourcedetection, memory_limiter, batch]
-      exporters: [opensearch, debug]
+      exporters: [debug, opensearch]
+      # , 
   telemetry:
     metrics:
       level: detailed
