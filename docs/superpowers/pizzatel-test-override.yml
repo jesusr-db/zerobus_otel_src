@@ -1,0 +1,22 @@
+# PizzaTel test override for docker-compose.minimal.yml.
+# NOTE: the pizza menu does NOT need a mount here — BOTH docker-compose.yml and
+# docker-compose.minimal.yml already mount ./src/product-catalog/products into the
+# product-catalog container, and products.json is runtime config (never baked into the
+# image). The ONLY thing minimal.yml is missing is the collector's Databricks env, below.
+#
+# Usage:
+#   docker compose -f docker-compose.minimal.yml \
+#     -f docs/superpowers/pizzatel-test-override.yml up -d
+services:
+  # docker-compose.minimal.yml mounts the Databricks otelcol-config-extras.yml (which
+  # references ${env:DATABRICKS_*}) but is stale and does NOT pass those vars to the
+  # collector container -> it crash-loops on "endpoint must be specified". The MAIN
+  # compose passes them (docker-compose.yml:827-831). Replicate that here so the minimal
+  # stack exports to Zerobus. Values interpolate from .env.
+  otel-collector:
+    environment:
+      - DATABRICKS_API_TOKEN=${DATABRICKS_API_TOKEN}
+      - DATABRICKS_OTEL_ENDPOINT=${DATABRICKS_OTEL_ENDPOINT}
+      - DATABRICKS_UC_TABLE_SPANS=${DATABRICKS_UC_TABLE_SPANS}
+      - DATABRICKS_UC_TABLE_LOGS=${DATABRICKS_UC_TABLE_LOGS}
+      - DATABRICKS_UC_TABLE_METRICS=${DATABRICKS_UC_TABLE_METRICS}

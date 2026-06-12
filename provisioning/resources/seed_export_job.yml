@@ -1,0 +1,19 @@
+resources:
+  jobs:
+    pizzatel_seed_export:
+      name: pizzatel-seed-export
+      tasks:
+        - task_key: export
+          environment_key: default
+          notebook_task:
+            notebook_path: ../src/seed_export_notebook.py
+            base_parameters:
+              catalog: ${var.catalog}
+              # pass the ACTUAL DAB-created resource names (not raw vars) so the notebook
+              # always writes to exactly what deploy created, regardless of any name preset.
+              demo_schema: ${resources.schemas.pizzatel_schema.name}
+              export_volume: ${resources.volumes.pizzatel_exports.name}
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
