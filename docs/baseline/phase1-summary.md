@@ -24,8 +24,12 @@ Pizza menu mounted into the prebuilt product-catalog image (no Go rebuild). Resu
 ## Known Plan-1-boundary state (tracked in phase0-risk-register.md)
 - B2 (pizza images 404 — Plan 2 UI), B3 (`productCatalogFailure` fault dead until re-pointed — Plan 3), S1 (load-gen hardcodes astronomy IDs → GetProduct 404s — Plan 3).
 
-## Open verification gap (B2 from Phase-1 review)
-The pizza menu was verified via a runtime **mount** of `products.json` into the prebuilt product-catalog image; a clean `docker compose build product-catalog` from source was NOT run (Go module proxy is DNS-blocked to 127.0.0.1 here). The committed `products.json` is the single source of truth and is proto-valid, so a build SHOULD bake it — but this must be confirmed by one real build in a proxy-unblocked env / CI before Plan 1 is considered fully closed.
+## B2 (Phase-1 review) — RESOLVED, was a misdiagnosis
+The review assumed `products.json` is baked into the image (`COPY ./src/product-catalog/products/ products/`). It is NOT: that COPY is in the **builder** stage only; the final image (`COPY --from=builder /usr/src/app/product-catalog/ ./`) contains **only the 17MB binary** — verified by exporting the prebuilt `ghcr.io/open-telemetry/demo:latest-product-catalog` (no `products/` dir present). The runtime gets the menu from a **compose volume mount** that BOTH `docker-compose.yml` and `docker-compose.minimal.yml` already declare:
+`- ./src/product-catalog/products:/usr/src/app/products`.
+So `products.json` is runtime-mounted config — changing the menu never needs an image rebuild, and the integration test exercised the real runtime path. (The product-catalog mount in `pizzatel-test-override.yml` was therefore redundant with the base compose; its only needed content was the collector env fix.)
+
+**From-source build confirmed clean:** a real build via a temp Dockerfile (injecting a reachable GOPROXY, since proxy.golang.org is DNS-blocked here) ran `go mod download` + `go build` successfully with the two `%s` vet fixes — proving the build compiles. No baked-image gap remains.
 
 ## Acceptance: ✅ MET
 catalog returns pizza; dependents start + serve; traces still span frontend → product-catalog (verified in Zerobus). Telemetry parity-or-better.
