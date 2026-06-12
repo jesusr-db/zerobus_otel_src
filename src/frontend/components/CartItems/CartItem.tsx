@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Product } from '../../protos/demo';
 import ProductPrice from '../ProductPrice';
 import * as S from './CartItems.styled';
+import { productImageFile } from '../../utils/productImage';
 
 interface IProps {
   product: Product;
@@ -12,14 +13,24 @@ interface IProps {
 }
 
 const CartItem = ({
-  product: { id, name, picture, priceUsd = { units: 0, nanos: 0, currencyCode: 'USD' } },
+  product: { id, name, categories, priceUsd = { units: 0, nanos: 0, currencyCode: 'USD' } },
   quantity,
 }: IProps) => {
+  const DEFAULT_SRC = '/images/products/default.jpg';
+  const imageSrc = '/images/products/' + productImageFile(categories);
   return (
     <S.CartItem>
       <Link href={`/product/${id}`}>
         <S.NameContainer>
-          <S.CartItemImage alt={name} src={"/images/products/" + picture} />
+          <S.CartItemImage
+            alt={name}
+            src={imageSrc}
+            onError={(e) => {
+              if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_SRC) {
+                (e.currentTarget as HTMLImageElement).src = DEFAULT_SRC;
+              }
+            }}
+          />
           <p>{name}</p>
         </S.NameContainer>
       </Link>

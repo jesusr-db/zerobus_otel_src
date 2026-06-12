@@ -7,6 +7,7 @@ import ProductPrice from '../ProductPrice';
 import * as S from './ProductCard.styled';
 import { useState, useEffect } from 'react';
 import { useNumberFlagValue } from '@openfeature/react-sdk';
+import { productImageFile } from '../../utils/productImage';
 
 interface IProps {
   product: Product;
@@ -20,7 +21,7 @@ async function getImageWithHeaders(requestInfo: Request) {
 const ProductCard = ({
   product: {
     id,
-    picture,
+    categories,
     name,
     priceUsd = {
       currencyCode: 'USD',
@@ -40,12 +41,12 @@ const ProductCard = ({
       method: "GET",
       headers: headers
     };
-    const image_url ='/images/products/' + picture
+    const image_url = '/images/products/' + productImageFile(categories);
     const requestInfo = new Request(image_url, requestInit);
     getImageWithHeaders(requestInfo).then(blob => {
       setImageSrc(URL.createObjectURL(blob));
     });
-  }, [imageSlowLoad, picture]);
+  }, [imageSlowLoad, categories]);
 
   return (
     <S.Link href={`/product/${id}`}>

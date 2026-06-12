@@ -7,6 +7,7 @@ import { CypressFields } from '../../utils/enums/CypressFields';
 import { IProductCartItem } from '../../types/Cart';
 import ProductPrice from '../ProductPrice';
 import * as S from './CartDropdown.styled';
+import { productImageFile } from '../../utils/productImage';
 
 interface IProps {
   isOpen: boolean;
@@ -42,9 +43,16 @@ const CartDropdown = ({ productList, isOpen, onClose }: IProps) => {
         <S.ItemList>
           {!productList.length && <S.EmptyCart>Your shopping cart is empty</S.EmptyCart>}
           {productList.map(
-            ({ quantity, product: { name, picture, id, priceUsd = { nanos: 0, currencyCode: 'USD', units: 0 } } }) => (
+            ({ quantity, product: { name, categories, id, priceUsd = { nanos: 0, currencyCode: 'USD', units: 0 } } }) => (
               <S.Item key={id} data-cy={CypressFields.CartDropdownItem}>
-                <S.ItemImage src={"/images/products/" + picture} alt={name} />
+                <S.ItemImage
+                  src={"/images/products/" + productImageFile(categories)}
+                  alt={name}
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (img.src !== '/images/products/default.jpg') img.src = '/images/products/default.jpg';
+                  }}
+                />
                 <S.ItemDetails>
                   <S.ItemName>{name}</S.ItemName>
                   <ProductPrice price={priceUsd} />
