@@ -12,9 +12,19 @@ Pizza menu mounted into the prebuilt product-catalog image (no Go rebuild). Resu
 - **Dependents functionally clean:** recommendation + checkout had **0** product/gRPC resolution errors (new numeric pizza IDs resolve). The only errors were `otel-collector:4317 UNAVAILABLE` telemetry-export blips during the collector restart — not functional.
 - **Telemetry parity (verified in Databricks Zerobus, not Jaeger — this collector routes traces to `[spanmetrics, otlphttp/traces→Databricks]`):**
   - `zerobus.otel_logs` 153,276 → **154,297**; `otel_metrics` 132,676 → **148,047**; `otel_spans` **0 → 3,248**.
-  - **product-catalog spans = 285** in Zerobus: `ListProducts` (28) + `GetProduct` (257).
-    - ⚠️ **The valid parity signal is the 28 `ListProducts` spans** (the menu loads + traces). The 257 `GetProduct` spans are **expected `NotFound` error spans**: the load-generator still requests hardcoded astronomy IDs (S1), none of which exist in the pizza menu (IDs 1–68), so each `GetProduct` hits `main.go:346` → `codes.NotFound`. They confirm product-catalog is *traced*, not that browse works. Browse traffic is knowingly broken until the load-gen is re-themed in Plan 3.
-  - product-catalog logs in Zerobus = 168 rows. Telemetry round-trip to Databricks confirmed (parity = product-catalog still emits spans/logs/metrics; ListProducts path valid).
+  - **product-catalog spans = 312** in Zerobus (verified by fresh time-filtered query), broken down by status:
+    - `ListProducts` — **31, clean** (the pizza menu loads + traces). This is the core parity signal. ✅
+    - `GetProduct` — **124 OK + 157 ERROR.** The 124 OK are valid pizza product fetches (frontend pulling real menu IDs); the 157 ERROR are `NotFound` (`main.go:346`) from the load-generator still requesting hardcoded astronomy IDs (S1, Plan 3). So browse is *partially* working, not fully broken.
+  - product-catalog logs in Zerobus = 168 rows. Telemetry round-trip to Databricks confirmed.
+
+### Provenance — confirmed the telemetry is OUR containers, not another source
+The `zerobus.*` tables are shared (150k+ historical rows), so provenance was verified, not assumed:
+- product-catalog spans' resource attributes: `host.name = docker-desktop`, `service.namespace = opentelemetry-demo`, `telemetry.sdk.language = go` → our local Docker stack.
+- The **entire** spans table (3,864; **0 before this run**) is exactly our 10 launched services (frontend, frontend-proxy, load-generator, cart, product-catalog, recommendation, checkout, ad, flagd, image-provider), all timestamped **19:13–19:20** (the run window).
+- Caveat: the endpoint/token are shared, so a simultaneous identical demo elsewhere can't be cryptographically excluded — but the 0-span baseline + exact window + exact service set make it effectively certain to be our run.
+
+### Demo design note — keep curated errors on purpose
+The 157 `GetProduct` NotFound spans are currently *accidental* (S1 stale load-gen IDs), but **intentional, curated errors are valuable for the observability demo**. When Plan 3 re-themes the load generator and flagd faults, do NOT zero out all errors — preserve a tasteful, explainable error/fault signal (e.g. an "out-of-stock pizza" 404, a re-themed `productCatalogFailure`/"oven outage", a delivery-surge latency spike) so the trace/error views have a story to tell. Replace accidental noise with deliberate, narratable faults rather than eliminating errors entirely.
 
 ## Notable findings
 - **S3 (otel_spans=0) RESOLVED empirically:** spans DO land in Zerobus (3,248) when a properly-wired collector runs. The earlier 0 was absence of an exporting collector, not a broken ingestion path.
