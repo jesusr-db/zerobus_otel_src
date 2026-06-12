@@ -1,0 +1,25 @@
+# PizzaTel test override — mounts the synth-sourced pizza menu into the prebuilt
+# product-catalog image so integration tests pick it up WITHOUT a Go rebuild
+# (the Go module proxy is DNS-blocked in this environment). WORKDIR is /usr/src/app,
+# and the binary reads ./products/, so we mount over /usr/src/app/products.
+#
+# Usage:
+#   docker compose -f docker-compose.minimal.yml \
+#     -f docs/superpowers/pizzatel-test-override.yml up -d
+services:
+  product-catalog:
+    volumes:
+      - ./src/product-catalog/products:/usr/src/app/products:ro
+
+  # docker-compose.minimal.yml mounts the Databricks otelcol-config-extras.yml (which
+  # references ${env:DATABRICKS_*}) but is stale and does NOT pass those vars to the
+  # collector container -> it crash-loops on "endpoint must be specified". The MAIN
+  # compose passes them (docker-compose.yml:827-831). Replicate that here so the minimal
+  # stack exports to Zerobus. Values interpolate from .env.
+  otel-collector:
+    environment:
+      - DATABRICKS_API_TOKEN=${DATABRICKS_API_TOKEN}
+      - DATABRICKS_OTEL_ENDPOINT=${DATABRICKS_OTEL_ENDPOINT}
+      - DATABRICKS_UC_TABLE_SPANS=${DATABRICKS_UC_TABLE_SPANS}
+      - DATABRICKS_UC_TABLE_LOGS=${DATABRICKS_UC_TABLE_LOGS}
+      - DATABRICKS_UC_TABLE_METRICS=${DATABRICKS_UC_TABLE_METRICS}
