@@ -4,6 +4,11 @@ resources:
       catalog_name: ${var.catalog}
       name: ${var.demo_schema}
       comment: "Demo-owned curated + feature tables for PizzaTel (never writes into synth_*)."
+      # The seed-export notebook creates tables (menu/stores) INSIDE this schema, so the
+      # schema is non-empty at destroy time. force_destroy lets `databricks bundle destroy`
+      # drop it (and its managed tables/volume) without a manual cleanup step — required for
+      # the automation standard's paired teardown to actually work.
+      force_destroy: true
   volumes:
     pizzatel_exports:
       catalog_name: ${var.catalog}

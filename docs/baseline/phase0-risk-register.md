@@ -16,6 +16,15 @@ Output of an adversarial "did we miss anything" review of Phase 0, with disposit
 | N2 | NICE | ADR 0002 scale-to-zero/teardown unverified on Azure. | Revisit at Plan 4 (Lakebase/serving) where it becomes testable. |
 | N3 | NICE | `item_status`/channel flags exported but not surfaced to Product. | Intentional for Plan 1; available for Plan 3 (86'd items). Noted in mapping doc. |
 
+## Phase-1 close-out adversarial review (2026-06-12)
+| ID | Severity | Finding | Disposition |
+|---|---|---|---|
+| P1-B1 | BLOCKER | `databricks bundle destroy` would FAIL: the seed notebook creates tables inside `pizzatel` schema (non-empty), and the schema lacked `force_destroy`. Paired teardown (automation standard) was broken. | **FIXED:** added `force_destroy: true` to `pizzatel_schema`. Must be proven by running `bundle destroy` once in an unblocked window (not run now — it would drop the seed the demo needs). |
+| P1-B2 | BLOCKER (verification) | Pizza menu proven only via runtime MOUNT into the prebuilt image; `docker compose build product-catalog` from source never run (Go proxy DNS-blocked). | **OPEN — needs CI/unblocked build.** Committed `products.json` is proto-valid + single source of truth; documented in phase1-summary.md "Open verification gap". Close before declaring Plan 1 fully done. |
+| P1-B3 | BLOCKER (hygiene) | Load-bearing `docker-compose.yml` collector-env passthrough is UNCOMMITTED in the working tree (pre-existing user change); stray `otelcol-config-extras.yml.bak`. | **ESCALATED to user** — their pre-existing change; commit-or-revert decision pending. |
+| P1-S1 | SHOULD-FIX | phase1-summary claimed 257 GetProduct spans = "browse works". They are `NotFound` error spans (load-gen astronomy IDs). | **FIXED:** corrected summary; parity rests on the 28 ListProducts spans. |
+| P1-S3 | SHOULD-FIX | README `--var=catalog=…` portability omits that `synth_ref.*` source data exists only in the `jmrdemo` Azure workspace. | **FIXED:** README caveat added. |
+
 ## Open follow-up: `zerobus.otel_spans = 0`
 - **Hypothesis:** collector span pipeline not exporting to the Zerobus span sink (logs+metrics pipelines are), OR sampling, OR the span ingestion endpoint differs.
 - **Owner:** TBD (not a Plan 1 blocker — Plan 1 touches no telemetry config).

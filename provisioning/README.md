@@ -10,8 +10,15 @@ Parameterized Databricks Asset Bundle. The `jmrdemo.synth_*` catalog is READ-ONL
 ## Run the seed export
     databricks bundle run pizzatel_seed_export -t dev
 
-## Destroy (DAB-managed resources only)
+## Destroy
     databricks bundle destroy -t dev
+The `pizzatel` schema is declared with `force_destroy: true`, so destroy drops it
+*and* the seed notebook's tables (menu/stores) + the managed exports volume — no manual cleanup.
 
 Override the catalog/schema for another workspace:
     databricks bundle deploy -t dev --var="catalog=mycat" --var="demo_schema=pizzatel"
+
+> Portability caveat: the seed export reads `<catalog>.synth_ref.*`, which currently exists
+> ONLY in the `jmrdemo` Azure workspace. Running the export against a fresh workspace requires
+> that synth reference data (or a copied `pizzatel_seed` snapshot) to be present first — see
+> ADR 0003 "Data residency note".

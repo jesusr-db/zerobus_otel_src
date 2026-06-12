@@ -12,8 +12,9 @@ Pizza menu mounted into the prebuilt product-catalog image (no Go rebuild). Resu
 - **Dependents functionally clean:** recommendation + checkout had **0** product/gRPC resolution errors (new numeric pizza IDs resolve). The only errors were `otel-collector:4317 UNAVAILABLE` telemetry-export blips during the collector restart — not functional.
 - **Telemetry parity (verified in Databricks Zerobus, not Jaeger — this collector routes traces to `[spanmetrics, otlphttp/traces→Databricks]`):**
   - `zerobus.otel_logs` 153,276 → **154,297**; `otel_metrics` 132,676 → **148,047**; `otel_spans` **0 → 3,248**.
-  - **product-catalog spans = 285** in Zerobus: `ProductCatalogService/GetProduct` (257) + `ListProducts` (28) → frontend→product-catalog tracing intact with the pizza menu.
-  - product-catalog logs in Zerobus = 168 rows. Full telemetry round-trip to Databricks confirmed.
+  - **product-catalog spans = 285** in Zerobus: `ListProducts` (28) + `GetProduct` (257).
+    - ⚠️ **The valid parity signal is the 28 `ListProducts` spans** (the menu loads + traces). The 257 `GetProduct` spans are **expected `NotFound` error spans**: the load-generator still requests hardcoded astronomy IDs (S1), none of which exist in the pizza menu (IDs 1–68), so each `GetProduct` hits `main.go:346` → `codes.NotFound`. They confirm product-catalog is *traced*, not that browse works. Browse traffic is knowingly broken until the load-gen is re-themed in Plan 3.
+  - product-catalog logs in Zerobus = 168 rows. Telemetry round-trip to Databricks confirmed (parity = product-catalog still emits spans/logs/metrics; ListProducts path valid).
 
 ## Notable findings
 - **S3 (otel_spans=0) RESOLVED empirically:** spans DO land in Zerobus (3,248) when a properly-wired collector runs. The earlier 0 was absence of an exporting collector, not a broken ingestion path.
@@ -21,7 +22,10 @@ Pizza menu mounted into the prebuilt product-catalog image (no Go rebuild). Resu
 - **Go vet:** fixed two pre-existing non-constant-format-string errors in `product-catalog/main.go` (surfaced by `go test`).
 
 ## Known Plan-1-boundary state (tracked in phase0-risk-register.md)
-- B2 (pizza images 404 — Plan 2 UI), B3 (`productCatalogFailure` fault dead until re-pointed — Plan 3), S1 (load-gen hardcodes astronomy IDs — Plan 3). GetProduct spans present suggests the frontend drives valid product fetches regardless.
+- B2 (pizza images 404 — Plan 2 UI), B3 (`productCatalogFailure` fault dead until re-pointed — Plan 3), S1 (load-gen hardcodes astronomy IDs → GetProduct 404s — Plan 3).
+
+## Open verification gap (B2 from Phase-1 review)
+The pizza menu was verified via a runtime **mount** of `products.json` into the prebuilt product-catalog image; a clean `docker compose build product-catalog` from source was NOT run (Go module proxy is DNS-blocked to 127.0.0.1 here). The committed `products.json` is the single source of truth and is proto-valid, so a build SHOULD bake it — but this must be confirmed by one real build in a proxy-unblocked env / CI before Plan 1 is considered fully closed.
 
 ## Acceptance: ✅ MET
 catalog returns pizza; dependents start + serve; traces still span frontend → product-catalog (verified in Zerobus). Telemetry parity-or-better.
