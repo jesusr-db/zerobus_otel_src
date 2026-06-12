@@ -15,6 +15,7 @@ import AdProvider from '../../../../providers/Ad.provider';
 import { Money } from '../../../../protos/demo';
 import * as S from '../../../../styles/Checkout.styled';
 import { IProductCheckout } from '../../../../types/Cart';
+import { productImageFile } from '../../../../utils/productImage';
 
 const Checkout: NextPage = () => {
   const { query } = useRouter();
@@ -82,7 +83,7 @@ const Checkout: NextPage = () => {
 
                   return (
                     <S.OrderItem key={item.productId}>
-                      <S.ItemImage src={"/images/products/" + item.product.picture} alt={item.product.name}/>
+                      <S.ItemImage src={"/images/products/" + productImageFile(item.product.categories)} alt={item.product.name} onError={(e) => { const t = e.currentTarget; if (!t.src.endsWith('/default.jpg')) t.src = '/images/products/default.jpg'; }}/>
                       <S.ItemDetails>
                         <S.ItemName>{item.product.name}</S.ItemName>
                         <S.ItemQuantity>Quantity: {item.quantity}</S.ItemQuantity>
