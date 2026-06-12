@@ -1,0 +1,23 @@
+bundle:
+  name: pizzatel-provisioning
+
+variables:
+  catalog:
+    description: UC catalog that already holds the synth_* data (read-only) and will hold pizzatel.*
+    default: jmrdemo
+  demo_schema:
+    description: Schema for demo-owned curated tables
+    default: pizzatel
+  export_volume:
+    description: Volume name for offline export files
+    default: exports
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      profile: DEFAULT

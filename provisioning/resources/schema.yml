@@ -1,0 +1,13 @@
+resources:
+  schemas:
+    pizzatel_schema:
+      catalog_name: ${var.catalog}
+      name: ${var.demo_schema}
+      comment: "Demo-owned curated + feature tables for PizzaTel (never writes into synth_*)."
+  volumes:
+    pizzatel_exports:
+      catalog_name: ${var.catalog}
+      schema_name: ${var.demo_schema}
+      name: ${var.export_volume}
+      volume_type: MANAGED
+      comment: "Offline export files (pizza_menu.json) baked into the demo."
