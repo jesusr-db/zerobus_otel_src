@@ -1,8 +1,13 @@
 # Databricks notebook source
 # Reads synth_ref.* (read-only) -> writes pizzatel curated tables + offline pizza_menu.json.
 import json
-from pyspark.sql import functions as F
-from src.seed_transform import menu_item_to_product
+
+# The bundle syncs provisioning/ so seed_transform.py lands next to this notebook at runtime
+# (.../files/src/). Import as a sibling; fall back to the package path for local/package use.
+try:
+    from seed_transform import menu_item_to_product
+except ModuleNotFoundError:
+    from src.seed_transform import menu_item_to_product
 
 dbutils.widgets.text("catalog", "jmrdemo")
 dbutils.widgets.text("demo_schema", "pizzatel")
@@ -16,10 +21,16 @@ export_volume = dbutils.widgets.get("export_volume")
 menu = spark.table(f"{catalog}.synth_ref.menu_item").select(
     "menu_item_id", "item_name", "category", "subcategory", "base_price", "item_status"
 )
-menu.write.mode("overwrite").saveAsTable(f"{catalog}.{demo_schema}.menu")
+menu.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
+    f"{catalog}.{demo_schema}.menu"
+)
 
-# --- curated stores snapshot ---
-spark.table(f"{catalog}.synth_ref.unit").write.mode("overwrite").saveAsTable(
+# --- curated stores snapshot (explicit projection of demo-relevant columns) ---
+stores = spark.table(f"{catalog}.synth_ref.unit").select(
+    "unit_id", "unit_name", "city", "state", "lat", "lon",
+    "metro_area", "region_id", "franchisee_id", "format", "status",
+)
+stores.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     f"{catalog}.{demo_schema}.stores"
 )
 

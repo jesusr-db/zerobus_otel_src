@@ -17,7 +17,10 @@ include:
 
 targets:
   dev:
-    mode: development
     default: true
+    # No `mode: development` on purpose: pizzatel is a SHARED, canonical demo schema
+    # (jmrdemo.pizzatel), not a per-developer sandbox. dev-mode prefixes UC schema names to
+    # dev_<user>_pizzatel, which defeats the intent and breaks the downstream products.json
+    # contract. Omitting mode keeps schema/volume/job names deterministic.
     workspace:
       profile: DEFAULT
