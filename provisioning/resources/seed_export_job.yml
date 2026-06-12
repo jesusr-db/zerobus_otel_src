@@ -1,0 +1,12 @@
+resources:
+  jobs:
+    pizzatel_seed_export:
+      name: pizzatel-seed-export
+      tasks:
+        - task_key: export
+          notebook_task:
+            notebook_path: ../src/seed_export_notebook.py
+            base_parameters:
+              catalog: ${var.catalog}
+              demo_schema: ${var.demo_schema}
+              export_volume: ${var.export_volume}
