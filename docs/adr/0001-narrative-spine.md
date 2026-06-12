@@ -9,4 +9,4 @@ Sequenced "both" (brainstorm A3): the observability story carries Goal 1 (re-the
 ## Consequences
 - Each half is independently demoable.
 - Phase 3 must be treated as a real release, not a waypoint.
-- The "see live data in Databricks" beat is strengthened by the already-wired `zerobus` OTel landing (once the `otel_spans` gap is fixed).
+- The "see live data in Databricks" beat CAN be strengthened by the already-wired `zerobus` OTel landing — but the spine does NOT depend on it: `otel_spans` currently has 0 rows (logs/metrics flow). Treat span-in-Databricks as upside, not a load-bearing requirement, until that gap is fixed (see `docs/baseline/phase0-risk-register.md`).

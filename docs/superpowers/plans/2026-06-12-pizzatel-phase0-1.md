@@ -562,13 +562,15 @@ Expected: deploy creates `jmrdemo.pizzatel` schema + `exports` volume; the run p
 
 - [ ] **Step 2: Download the generated menu over the existing products.json**
 
-Run:
+Run (UC Volumes use the `/Volumes/...` path; verify the exact flag against your installed CLI — newer `databricks fs cp` accepts the `dbfs:/Volumes/...` form, older may need `databricks fs cp /Volumes/...`):
 ```bash
 cd /Users/jesus.rodriguez/Documents/ItsAVibe/gitRepos_FY26/opentelemetry-demo
 databricks fs cp dbfs:/Volumes/jmrdemo/pizzatel/exports/pizza_menu.json \
-  src/product-catalog/products/products.json -p DEFAULT --overwrite
+  src/product-catalog/products/products.json -p DEFAULT --overwrite \
+  || databricks fs cp /Volumes/jmrdemo/pizzatel/exports/pizza_menu.json \
+     src/product-catalog/products/products.json -p DEFAULT --overwrite
 ```
-Expected: `products.json` now contains pizza items.
+Expected: `products.json` now contains pizza items. (The notebook writes to `/Volumes/{catalog}/{demo_schema}/{export_volume}/pizza_menu.json` — keep read and write paths aligned.)
 
 - [ ] **Step 3: Validate it parses and is non-empty pizza data**
 
@@ -683,15 +685,23 @@ Run:
 docker compose logs recommendation --since 2m | grep -iE "error|exception|not found" || echo "recommendation: clean"
 docker compose logs checkout --since 2m | grep -iE "error|exception|not found" || echo "checkout: clean"
 ```
-Expected: `recommendation: clean` and `checkout: clean` (recommendation reads catalog product IDs; clean logs confirm the new IDs resolve).
+Expected: `recommendation: clean` and `checkout: clean` (recommendation reads catalog product IDs at request time; clean logs confirm the new numeric IDs resolve).
 
-- [ ] **Step 4: Verify telemetry parity — the frontend→product-catalog span path still exists**
+> **Known Plan-1-boundary state (risk-register S1/B3):** the `load-generator` still requests hardcoded astronomy product IDs (re-themed in Plan 3), so browse/view-product traffic will 404 until then. The `productCatalogFailure` flagd fault (hardwired to `OLJCESPC7Z` in `main.go:385`) is dead until re-pointed in Plan 3. Do NOT treat browse-404s as a Plan 1 regression — scope the parity check below to `ListProducts`.
 
-Let traffic run ~2 minutes, then query Jaeger for product-catalog traces:
+- [ ] **Step 4: Verify telemetry parity — service set unchanged + product-catalog still emits spans**
+
+The expected service set comes from the compose file itself (no stock baseline bring-up required — risk-register B1):
 ```bash
-curl -s "http://localhost:8080/jaeger/ui/api/traces?service=product-catalog&limit=5" | python3 -c "import sys,json;d=json.load(sys.stdin);print('traces',len(d.get('data',[])));assert len(d.get('data',[]))>0"
+# 4a. No service dropped vs the compose definition:
+comm -23 <(docker compose config --services | sort) <(docker compose ps --services | sort)
+# (empty output for the services you started = none missing; services you didn't start in Step 1 will list — that's expected)
+
+# 4b. product-catalog still emits spans (scoped to ListProducts; browse traffic is knowingly broken until Plan 3):
+curl -s "http://localhost:8080/jaeger/ui/api/traces?service=product-catalog&operation=oteldemo.ProductCatalogService/ListProducts&limit=5" \
+  | python3 -c "import sys,json;d=json.load(sys.stdin);n=len(d.get('data',[]));print('ListProducts traces',n);assert n>0"
 ```
-Expected: `traces` > 0 — the service still emits spans (parity preserved). Compare service list against `docs/baseline/services.txt`; no service should be missing.
+Expected: 4a lists only services you intentionally did not start; 4b prints `ListProducts traces` > 0 — `product-catalog` still emits spans after the re-theme (parity preserved for the data layer).
 
 - [ ] **Step 5: Tear down**
 

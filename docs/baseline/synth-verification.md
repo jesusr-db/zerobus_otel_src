@@ -23,8 +23,11 @@ Bonus columns available for later phases: `cost` (margin story), `daypart` (lunc
 Columns: `unit_id LONG, unit_name STRING, city STRING, state STRING, lat DOUBLE, lon DOUBLE, metro_area STRING, district_id LONG, region_id LONG, franchisee_id LONG, format STRING, unit_volume_bias DOUBLE, is_franchise BOOLEAN, status STRING, market_price_index DOUBLE`
 (Has lat/lon + metro_area → real delivery-zone / store-locator data.)
 
-## `synth_staging` (live generated events)
-Schema present. `order_events` (wide event table, `event_type` discriminator) confirmed from the synthData repo data-model + `mvm_pipeline.py`. Detailed table enumeration deferred to Plan 2 (tracker) where `order_events`/`status_event` are consumed.
+## `synth_staging` (live generated events) — VERIFIED 2026-06-12
+Tables: `guest_events, inventory_events, loyalty_events, order_events, workforce_events`.
+`order_events` (wide event table, `event_type` discriminator) column-verified against the live catalog — matches the data-model exactly, including the tracker-critical fields:
+`event_type, guest_order_id, unit_id, channel, order_type, order_status, profile_id, member_id, subtotal, total_amount, placed_at, ready_at, fulfilled_at, cancelled_at, sos_breach, menu_item_id, quantity, unit_price, prior_state, current_state, event_timestamp, elapsed_seconds_in_prior_state, sos_target_seconds, is_sos_breach, estimated_delivery_seconds, actual_delivery_seconds, delivery_status, tender_type, paid_at, …`
+→ Plan 2 (tracker) contract confirmed against live data, not just the repo.
 
 ## 🔑 `zerobus` — live OTel telemetry ALREADY landing in Databricks
 The otel-collector is already exporting to Databricks via Zerobus (this is the "otel config already configured" the user referenced).

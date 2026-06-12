@@ -10,3 +10,6 @@ Hybrid-thin (brainstorm B4). Reference/seed data (menu/stores/personas) is expor
 - Demo is offline-runnable and fast; data is grounded in real generated reference data (68 menu items, 250 stores).
 - A snapshot/versioned export decouples us from synth schema drift (already bit us once: `item_name` vs `name`).
 - The live→Databricks round-trip (demo-as-producer) leverages the existing `zerobus`/`zerobus_sdp` landing rather than building new ingestion.
+
+## Data residency note (from adversarial review S4)
+The seed source (`synth_ref`, `synth_staging`, `zerobus`) exists in exactly ONE workspace — the `jmrdemo` **Azure** workspace. The bundle's `catalog`/`demo_schema` variables are portable, but the source data is not. Therefore the committed `pizzatel_seed` snapshot (the exported `pizza_menu.json` + curated tables) is the **actual portability mechanism** for running on a fresh workspace (e.g. an AWS FEVM workspace): you ship the snapshot, you do not re-run the export against synth. Re-running the seed export requires access to the `jmrdemo` Azure workspace.
