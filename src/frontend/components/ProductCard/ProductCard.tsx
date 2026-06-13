@@ -15,6 +15,10 @@ interface IProps {
 
 async function getImageWithHeaders(requestInfo: Request) {
   const res = await fetch(requestInfo);
+  if (!res.ok) {
+    const fallback = await fetch('/images/products/default.jpg');
+    return await fallback.blob();
+  }
   return await res.blob();
 }
 

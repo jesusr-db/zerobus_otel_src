@@ -13,6 +13,8 @@ const CATEGORY_IMAGES: Record<string, string> = {
   desserts: 'desserts.jpg',
   dessert: 'desserts.jpg',
   wings: 'wings.jpg',
+  salads: 'sides.jpg',
+  salad: 'sides.jpg',
 };
 
 export function productImageFile(categories: string[] = []): string {

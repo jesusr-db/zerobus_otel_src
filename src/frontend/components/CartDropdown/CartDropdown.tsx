@@ -50,7 +50,7 @@ const CartDropdown = ({ productList, isOpen, onClose }: IProps) => {
                   alt={name}
                   onError={(e) => {
                     const img = e.currentTarget as HTMLImageElement;
-                    if (img.src !== '/images/products/default.jpg') img.src = '/images/products/default.jpg';
+                    if (!img.src.endsWith('/default.jpg')) img.src = '/images/products/default.jpg';
                   }}
                 />
                 <S.ItemDetails>

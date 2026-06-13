@@ -26,7 +26,7 @@ const CartItem = ({
             alt={name}
             src={imageSrc}
             onError={(e) => {
-              if ((e.currentTarget as HTMLImageElement).src !== DEFAULT_SRC) {
+              if (!(e.currentTarget as HTMLImageElement).src.endsWith('/default.jpg')) {
                 (e.currentTarget as HTMLImageElement).src = DEFAULT_SRC;
               }
             }}
