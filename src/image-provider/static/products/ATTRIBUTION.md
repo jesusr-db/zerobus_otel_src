@@ -21,3 +21,26 @@ Category placeholder photos sourced via Openverse (free-for-commercial-use CC li
 - **pizza-garlic.jpg** — "Mmm... roasted garlic white pizza" by jeffreyw, BY | https://www.flickr.com/photos/7927684@N03/14130894452
 ## Hero
 Banner.png — "Pizza at the Bibo in Vancouver (15127631569)" by Geoff Peters from Vancouver, BC, Canada, BY | https://commons.wikimedia.org/w/index.php?curid=80212587
+## Non-pizza variety photos
+- **wing-buffalo.jpg** — "02 Buffalo Chicken Wings - Blondie's" by jasonlam, BY-SA
+- **wing-bbq.jpg** — "BBQ Chicken Wings" by @joefoodie, BY
+- **wing-mango.jpg** — "Andy Chan's Spicy Fried Chicken Wings" by avlxyz, BY-SA
+- **wing-garlic.jpg** — "garlic parmesan buffalo wings" by ginnerobot, BY-SA
+- **drink-cola.jpg** — "Pepsi Natural" by Teuobk, BY-ND
+- **drink-sprite.jpg** — "Can of Diet Sierra Mist lemon-lime soda," by DimiTalen, CC0
+- **drink-water.jpg** — "Water is life, bottled water is better" by williami5, BY
+- **drink-rootbeer.jpg** — "Root Beer Mugs #lonestar" by Al Pavangkanan, BY
+- **drink-orange.jpg** — "193 - Orange Soda" by LaMenta3, BY-SA
+- **dessert-lava.jpg** — "Plated Chocolate Lava Cake Dessert Coral" by mrkathika, BY-SA
+- **dessert-brownie.jpg** — "Vegan Double Chocolate Brownie Chunk Ice" by Veganbaking.net, BY-SA
+- **dessert-cinnamon.jpg** — "Cinnamon roll" by Helen.Yang, BY
+- **dessert-cookie.jpg** — "healthy chocolate chip cookies" by hlkljgk, BY-SA
+- **salad-garden.jpg** — "spring garden salad bowl" by woodleywonderworks, BY
+- **salad-caesar.jpg** — "Grilled Chicken Caesar Salad - Automatic" by avlxyz, BY-SA
+- **salad-southwest.jpg** — "southwest salad ingredients yellow sweet" by PersonalCreations.com, BY
+- **side-breadsticks.jpg** — "Garlic breadsticks" by manda_wong, BY
+- **side-cheesybread.jpg** — "Lay's Cheesy Garlic Bread" by Scott Cyrus, BY
+- **side-dip.jpg** — "Tropika satays" by Monica Arellano-Ongpin, BY
+- **side-pasta.jpg** — "Penne Pasta Alfredo" by debbietingzon, BY
+- **side-tots.jpg** — "mac 'n cheese with tater tots" by rick, BY
+- **side-chicken.jpg** — "Carl's Jr. Hand-Breaded Chicken Tenders " by theimpulsivebuy, BY-SA
