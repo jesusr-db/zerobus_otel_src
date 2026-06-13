@@ -27,7 +27,7 @@ const Footer = () => {
         </p>
       </div>
       <p>
-        @ {currentYear} OpenTelemetry (<a href="https://github.com/open-telemetry/opentelemetry-demo">Source Code</a>)
+        © {currentYear} PizzaTel — a demo pizza shop. Not a real store.
       </p>
       <PlatformFlag />
     </S.Footer>

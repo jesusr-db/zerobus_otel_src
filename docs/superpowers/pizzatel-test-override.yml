@@ -20,3 +20,11 @@ services:
       - DATABRICKS_UC_TABLE_SPANS=${DATABRICKS_UC_TABLE_SPANS}
       - DATABRICKS_UC_TABLE_LOGS=${DATABRICKS_UC_TABLE_LOGS}
       - DATABRICKS_UC_TABLE_METRICS=${DATABRICKS_UC_TABLE_METRICS}
+
+  # The image-provider bakes its static files into the (prebuilt) image, so the new
+  # pizza category placeholders added to src/image-provider/static/products/ aren't in
+  # the running container. Mounting the host dir over /static/products serves them
+  # without a rebuild (the committed source change is the real fix; CI rebuilds the image).
+  image-provider:
+    volumes:
+      - ./src/image-provider/static:/static:ro
