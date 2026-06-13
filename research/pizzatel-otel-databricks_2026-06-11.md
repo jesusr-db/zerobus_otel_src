@@ -173,6 +173,22 @@ A live order has **no matching row** in synth. They share a time axis but are di
 
 ---
 
+# Deep-dive: Store selection (Plan 2b decision, 2026-06-13)
+
+**Decision: explicit store picker now; address→auto-nearest as roadmap.** Whichever pattern, the downstream artifact is identical — a `store_id` that flows into the order → tracker → SOS — so the picker ships now and auto-nearest is added later with zero downstream rework.
+
+**v1 (Plan 2b) — store picker (option A):**
+- A "Choose your store" selector in the frontend, grouped by metro/state (250 stores is too many flat). Fed by a baked `stores.json` seed (same offline pattern as the pizza menu; sourced from `jmrdemo.pizzatel.stores` ← `synth_ref.unit`, which has `unit_name/city/state/lat/lon/metro_area`). New instrumented BFF endpoint `/api/stores` (or a baked static file) — no backend/geocoding work.
+- Demo-repeatable: deliberately pick a store with rich synth history so the tracker/SOS/recommendation story is consistent every run. Realistic for carryout.
+- The selected `store_id` is carried into checkout → order → the Kafka order-tracker (keys timeline by store) → SOS target (carryout 720s / delivery 1800s).
+
+**Roadmap — address→auto-nearest (option B), evolving to D (split by order type):**
+- Geocode the checkout `Address` (`city/state/zip_code`) offline using `synthData/src/generator/reference/us_locations.py` metro centroids (or a baked zip→lat/lon table) → **haversine** to all store `lat/lon` → nearest within a delivery radius. No external geocoder (honors ADR 0002 offline-runnable).
+- Natural home: the `shipping` service (Rust) — it already receives the address and computes the delivery ETA/fee, so distance drives the "Out for Delivery → Delivered" leg.
+- End state (option D): carryout → store picker; delivery → address→auto-nearest.
+
+---
+
 # Deep-dive: OTel export → `order_events` schema conformance
 
 ## Principle: separate transport from conformance
