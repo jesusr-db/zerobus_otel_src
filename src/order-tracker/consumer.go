@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -54,12 +55,28 @@ func (t *tracker) handle(msg *sarama.ConsumerMessage) {
 	}
 	_ = t.store.Put(ctx, st)
 
+	addr := order.GetShippingAddress()
+	var skus []string
+	var totalQty int32
+	for _, it := range order.GetItems() {
+		ci := it.GetItem()
+		skus = append(skus, fmt.Sprintf("%s x%d", ci.GetProductId(), ci.GetQuantity()))
+		totalQty += ci.GetQuantity()
+	}
+
 	_, span := t.tracer.Start(ctx, "order-tracker received order",
 		trace.WithAttributes(
 			attribute.String("order.id", st.OrderID),
 			attribute.String("order.channel", channel),
+			attribute.String("order.store_id", storeID),
 			attribute.Int("sos.target_seconds", sched.SosTargetSeconds),
 			attribute.Int("order.prep_seconds", prep),
+			attribute.Int("order.item_count", len(order.GetItems())),
+			attribute.Int("order.total_quantity", int(totalQty)),
+			attribute.StringSlice("order.skus", skus),
+			attribute.String("order.location.city", addr.GetCity()),
+			attribute.String("order.location.state", addr.GetState()),
+			attribute.String("order.location.zip", addr.GetZipCode()),
 		))
 	span.End()
 
