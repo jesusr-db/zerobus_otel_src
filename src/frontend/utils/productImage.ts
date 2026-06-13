@@ -1,9 +1,9 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Maps a product to a category placeholder image, with a safe default.
-// The synth menu has 68 items but only category placeholder art exists, so we key on
-// the product's first matching category instead of a per-item photo (resolves risk B2).
+// Resolves a product image. Pizzas match their description by name keyword (so a Veggie
+// pizza shows a veggie photo, Pepperoni shows pepperoni, etc.); everything else falls back
+// to a category image, then a safe default. Files live in image-provider /static/products.
 const CATEGORY_IMAGES: Record<string, string> = {
   pizza: 'pizza.jpg',
   sides: 'sides.jpg',
@@ -17,9 +17,28 @@ const CATEGORY_IMAGES: Record<string, string> = {
   salad: 'salads.jpg',
 };
 
-export function productImageFile(categories: string[] = []): string {
-  for (const c of categories) {
-    const hit = CATEGORY_IMAGES[c?.toLowerCase?.() ?? ''];
+// Order matters: more specific descriptors first (Philly before Cheese, Buffalo before BBQ).
+const PIZZA_VARIETIES: Array<[RegExp, string]> = [
+  [/pepperoni/i, 'pizza-pepperoni.jpg'],
+  [/buffalo/i, 'pizza-buffalo.jpg'],
+  [/bbq|barbe/i, 'pizza-bbq.jpg'],
+  [/hawaiian|honolulu|pineapple/i, 'pizza-hawaiian.jpg'],
+  [/philly|cheese ?steak/i, 'pizza-philly.jpg'],
+  [/meat|sausage|meatzza/i, 'pizza-meat.jpg'],
+  [/veggie|vegg|spinach|feta|pacific|garden/i, 'pizza-veggie.jpg'],
+  [/extravaganzza|supreme|deluxe|new yorker|ultimate/i, 'pizza-supreme.jpg'],
+  [/garlic/i, 'pizza-garlic.jpg'],
+  [/cheese/i, 'pizza-cheese.jpg'],
+];
+
+export function productImageFile(name = '', categories: string[] = []): string {
+  const cats = categories.map(c => (c?.toLowerCase?.() ?? ''));
+  if (cats.includes('pizza')) {
+    for (const [re, img] of PIZZA_VARIETIES) if (re.test(name)) return img;
+    return 'pizza.jpg';
+  }
+  for (const c of cats) {
+    const hit = CATEGORY_IMAGES[c];
     if (hit) return hit;
   }
   return 'default.jpg';

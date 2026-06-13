@@ -83,7 +83,7 @@ const Checkout: NextPage = () => {
 
                   return (
                     <S.OrderItem key={item.productId}>
-                      <S.ItemImage src={"/images/products/" + productImageFile(item.product.categories)} alt={item.product.name} onError={(e) => { const t = e.currentTarget; if (!t.src.endsWith('/default.jpg')) t.src = '/images/products/default.jpg'; }}/>
+                      <S.ItemImage src={"/images/products/" + productImageFile(item.product.name, item.product.categories)} alt={item.product.name} onError={(e) => { const t = e.currentTarget; if (!t.src.endsWith('/default.jpg')) t.src = '/images/products/default.jpg'; }}/>
                       <S.ItemDetails>
                         <S.ItemName>{item.product.name}</S.ItemName>
                         <S.ItemQuantity>Quantity: {item.quantity}</S.ItemQuantity>

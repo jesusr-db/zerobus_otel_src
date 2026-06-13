@@ -46,7 +46,7 @@ const CartDropdown = ({ productList, isOpen, onClose }: IProps) => {
             ({ quantity, product: { name, categories, id, priceUsd = { nanos: 0, currencyCode: 'USD', units: 0 } } }) => (
               <S.Item key={id} data-cy={CypressFields.CartDropdownItem}>
                 <S.ItemImage
-                  src={"/images/products/" + productImageFile(categories)}
+                  src={"/images/products/" + productImageFile(name, categories)}
                   alt={name}
                   onError={(e) => {
                     const img = e.currentTarget as HTMLImageElement;
