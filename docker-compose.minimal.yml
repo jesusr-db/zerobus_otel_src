@@ -255,6 +255,7 @@ services:
       - OTEL_COLLECTOR_HOST
       - FLAGD_HOST
       - FLAGD_PORT
+      - VALKEY_ADDR
     depends_on:
       ad:
         condition: service_started
