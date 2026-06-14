@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { useMemo } from 'react';
 import Ad from '../../../../components/Ad';
 import Button from '../../../../components/Button';
+import OrderTracker from '../../../../components/OrderTracker';
 import Layout from '../../../../components/Layout';
 import ProductPrice from '../../../../components/ProductPrice';
 import Recommendations from '../../../../components/Recommendations';
@@ -53,6 +54,7 @@ const Checkout: NextPage = () => {
           <S.Container>
             <S.LeftColumn>
               <S.Title>Your order is complete!</S.Title>
+              <OrderTracker orderId={orderId} />
               <S.Subtitle>We&apos;ve sent you a confirmation email.</S.Subtitle>
               <S.OrderInfo>
                 <S.InfoLabel>Order ID:</S.InfoLabel>
