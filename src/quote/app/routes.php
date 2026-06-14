@@ -26,8 +26,11 @@ function calculateQuote($jsonObject): float
             throw new \InvalidArgumentException('numberOfItems not provided');
         }
         $numberOfItems = intval($jsonObject['numberOfItems']);
-        $costPerItem = rand(400, 1000)/10;
-        $quote = round($costPerItem * $numberOfItems, 2);
+        // PizzaTel: no delivery fee. The synthetic order model charges only for food —
+        // guest_order.total_amount = subtotal + tax - discount, with no delivery/shipping
+        // line, and delivery is modeled as time/SLA (delivery_order.*_delivery_seconds),
+        // not a charge. (Was the astronomy-shop rand(400,1000)/10 per item.)
+        $quote = 0.0;
 
         $childSpan->setAttribute('app.quote.items.count', $numberOfItems);
         $childSpan->setAttribute('app.quote.cost.total', $quote);
