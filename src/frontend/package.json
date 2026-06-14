@@ -44,6 +44,7 @@
     "next": "16.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "redis": "^6.0.0",
     "sharp": "0.34.4",
     "styled-components": "6.1.19",
     "uuid": "13.0.0"

@@ -46,6 +46,34 @@ services:
         condition: service_healthy
     logging: *logging
 
+  order-tracker:
+    image: ${IMAGE_NAME}:${DEMO_VERSION}-order-tracker
+    container_name: order-tracker
+    build:
+      context: ./
+      dockerfile: ${ORDER_TRACKER_DOCKERFILE}
+      args:
+        GOPROXY: ${GOPROXY:-https://proxy.golang.org,direct}
+    deploy:
+      resources:
+        limits:
+          memory: 50M
+    restart: unless-stopped
+    environment:
+      - KAFKA_ADDR
+      - VALKEY_ADDR
+      - OTEL_EXPORTER_OTLP_ENDPOINT
+      - OTEL_RESOURCE_ATTRIBUTES
+      - OTEL_SERVICE_NAME=order-tracker
+    depends_on:
+      kafka:
+        condition: service_healthy
+      valkey-cart:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+    logging: *logging
+
   # AdService
   ad:
     image: ${IMAGE_NAME}:${DEMO_VERSION}-ad
@@ -300,6 +328,7 @@ services:
       - OTEL_COLLECTOR_HOST
       - FLAGD_HOST
       - FLAGD_PORT
+      - VALKEY_ADDR
     depends_on:
       ad:
         condition: service_started
@@ -322,6 +351,8 @@ services:
       image-provider:
         condition: service_started
       flagd:
+        condition: service_started
+      valkey-cart:
         condition: service_started
     logging: *logging
 

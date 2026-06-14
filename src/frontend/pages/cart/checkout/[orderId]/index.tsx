@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { useMemo } from 'react';
 import Ad from '../../../../components/Ad';
 import Button from '../../../../components/Button';
+import OrderTracker from '../../../../components/OrderTracker';
 import Layout from '../../../../components/Layout';
 import ProductPrice from '../../../../components/ProductPrice';
 import Recommendations from '../../../../components/Recommendations';
@@ -53,6 +54,7 @@ const Checkout: NextPage = () => {
           <S.Container>
             <S.LeftColumn>
               <S.Title>Your order is complete!</S.Title>
+              <OrderTracker orderId={orderId} />
               <S.Subtitle>We&apos;ve sent you a confirmation email.</S.Subtitle>
               <S.OrderInfo>
                 <S.InfoLabel>Order ID:</S.InfoLabel>
@@ -83,7 +85,7 @@ const Checkout: NextPage = () => {
 
                   return (
                     <S.OrderItem key={item.productId}>
-                      <S.ItemImage src={"/images/products/" + productImageFile(item.product.categories)} alt={item.product.name} onError={(e) => { const t = e.currentTarget; if (!t.src.endsWith('/default.jpg')) t.src = '/images/products/default.jpg'; }}/>
+                      <S.ItemImage src={"/images/products/" + productImageFile(item.product.name, item.product.categories)} alt={item.product.name} onError={(e) => { const t = e.currentTarget; if (!t.src.endsWith('/default.jpg')) t.src = '/images/products/default.jpg'; }}/>
                       <S.ItemDetails>
                         <S.ItemName>{item.product.name}</S.ItemName>
                         <S.ItemQuantity>Quantity: {item.quantity}</S.ItemQuantity>

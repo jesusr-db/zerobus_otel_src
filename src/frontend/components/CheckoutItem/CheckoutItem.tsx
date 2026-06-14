@@ -28,7 +28,7 @@ const CheckoutItem = ({
   address: { streetAddress = '', city = '', state = '', zipCode = '', country = '' },
 }: IProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const imageSrc = '/images/products/' + productImageFile(categories);
+  const imageSrc = '/images/products/' + productImageFile(name, categories);
 
   return (
     <S.CheckoutItem data-cy={CypressFields.CheckoutItem}>

@@ -17,7 +17,7 @@ const CartItem = ({
   quantity,
 }: IProps) => {
   const DEFAULT_SRC = '/images/products/default.jpg';
-  const imageSrc = '/images/products/' + productImageFile(categories);
+  const imageSrc = '/images/products/' + productImageFile(name, categories);
   return (
     <S.CartItem>
       <Link href={`/product/${id}`}>
