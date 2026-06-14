@@ -352,6 +352,8 @@ services:
         condition: service_started
       flagd:
         condition: service_started
+      valkey-cart:
+        condition: service_started
     logging: *logging
 
   # Frontend Proxy (Envoy)

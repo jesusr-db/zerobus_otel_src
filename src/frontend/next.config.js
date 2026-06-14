@@ -20,7 +20,6 @@ const {
   PRODUCT_CATALOG_ADDR = '',
   RECOMMENDATION_ADDR = '',
   SHIPPING_ADDR = '',
-  VALKEY_ADDR = '',
   ENV_PLATFORM = '',
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = '',
   OTEL_SERVICE_NAME = 'frontend',
@@ -59,7 +58,9 @@ const nextConfig = {
     PRODUCT_CATALOG_ADDR,
     RECOMMENDATION_ADDR,
     SHIPPING_ADDR,
-    VALKEY_ADDR,
+    // VALKEY_ADDR is intentionally NOT listed here: API routes read it at runtime via
+    // destructuring (see pages/api/order-status.ts). Listing it bakes a build-time empty
+    // string that would shadow the runtime value for any process.env.VALKEY_ADDR access.
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT,
     NEXT_PUBLIC_PLATFORM: ENV_PLATFORM,
     NEXT_PUBLIC_OTEL_SERVICE_NAME: OTEL_SERVICE_NAME,

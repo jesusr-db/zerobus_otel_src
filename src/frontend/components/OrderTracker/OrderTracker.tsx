@@ -21,6 +21,8 @@ const LABELS: Record<string, string> = {
   ReadyForPickup: 'Ready for Pickup',
 };
 
+const TERMINAL_STAGES = new Set(['Delivered', 'ReadyForPickup']);
+
 const OrderTracker = ({ orderId }: { orderId: string }) => {
   const [status, setStatus] = useState<OrderStatus | null>(null);
 
@@ -28,15 +30,14 @@ const OrderTracker = ({ orderId }: { orderId: string }) => {
     if (!orderId) return;
     let active = true;
     let intervalId: ReturnType<typeof setInterval> | undefined;
-    const TERMINAL = new Set(['Delivered', 'ReadyForPickup']);
     const poll = async () => {
       try {
-        const r = await fetch(`/api/order-status?orderId=${orderId}`);
+        const r = await fetch(`/api/order-status?orderId=${encodeURIComponent(orderId)}`);
         const d = await r.json();
         if (!active) return;
         if (d.stages?.length) {
           setStatus(d);
-          if (TERMINAL.has(d.currentStage) && intervalId) clearInterval(intervalId);
+          if (TERMINAL_STAGES.has(d.currentStage) && intervalId) clearInterval(intervalId);
         }
       } catch {
         // demo: ignore transient poll errors; the next tick retries
@@ -51,7 +52,7 @@ const OrderTracker = ({ orderId }: { orderId: string }) => {
 
   const curIdx = status.stages.indexOf(status.currentStage);
   const breached =
-    status.elapsedSeconds > status.sosTargetSeconds && status.currentStage !== 'Delivered';
+    status.elapsedSeconds > status.sosTargetSeconds && !TERMINAL_STAGES.has(status.currentStage);
 
   return (
     <S.Tracker role="status" data-cy="order-tracker">

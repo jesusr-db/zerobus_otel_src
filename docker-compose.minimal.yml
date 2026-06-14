@@ -277,6 +277,8 @@ services:
         condition: service_started
       image-provider:
         condition: service_started
+      valkey-cart:
+        condition: service_started
     logging: *logging
 
   # Frontend Proxy (Envoy)

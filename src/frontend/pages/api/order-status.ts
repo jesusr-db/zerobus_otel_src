@@ -56,6 +56,9 @@ const handler = async ({ method, query }: NextApiRequest, res: NextApiResponse<T
     } catch {
       return res.status(500).json({ error: 'invalid tracker state' });
     }
+    if (!st?.schedule?.stages?.length || typeof st.placed_at_unix !== 'number') {
+      return res.status(200).json({ orderId, status: 'pending', stages: [] });
+    }
     const now = Math.floor(Date.now() / 1000);
     return res.status(200).json({
       orderId,
