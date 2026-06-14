@@ -5,6 +5,12 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from 'redis';
 import InstrumentationMiddleware from '../../utils/telemetry/InstrumentationMiddleware';
 
+// Read via destructuring (not `process.env.VALKEY_ADDR` member access): Next.js
+// inlines member accesses listed in next.config `env` at build time, where .env is
+// absent — baking an empty host. Destructuring resolves from the runtime env instead,
+// matching the *_ADDR gateway convention.
+const { VALKEY_ADDR = '' } = process.env;
+
 type Stage = { name: string; offset_seconds: number };
 type OrderState = {
   order_id: string;
@@ -39,7 +45,7 @@ const handler = async ({ method, query }: NextApiRequest, res: NextApiResponse<T
   const orderId = String(query.orderId || '');
   if (!orderId) return res.status(400).json({ error: 'orderId required' });
 
-  const client = createClient({ url: `redis://${process.env.VALKEY_ADDR}` });
+  const client = createClient({ url: `redis://${VALKEY_ADDR}` });
   try {
     await client.connect();
     const raw = await client.get(`tracker:${orderId}`);
