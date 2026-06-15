@@ -11,6 +11,7 @@ const currentYear = new Date().getFullYear();
 const yearList = Array.from(new Array(20), (v, i) => i + currentYear);
 
 export interface IFormData {
+  orderType: string;
   email: string;
   streetAddress: string;
   city: string;
@@ -30,6 +31,7 @@ interface IProps {
 const CheckoutForm = ({ onSubmit }: IProps) => {
   const [
     {
+      orderType,
       email,
       streetAddress,
       city,
@@ -43,6 +45,7 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
     },
     setFormData,
   ] = useState<IFormData>({
+    orderType: 'delivery',
     email: 'someone@example.com',
     streetAddress: '1600 Amphitheatre Parkway',
     city: 'Mountain View',
@@ -67,6 +70,7 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
       onSubmit={(event: { preventDefault: () => void; }) => {
         event.preventDefault();
         onSubmit({
+          orderType,
           email,
           streetAddress,
           city,
@@ -80,6 +84,12 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
         });
       }}
     >
+      <S.Title>Order Type</S.Title>
+      <Input label="Order Type" name="orderType" id="order_type" value={orderType} onChange={handleChange} type="select">
+        <option value="delivery">Delivery</option>
+        <option value="carryout">Carryout</option>
+      </Input>
+
       <S.Title>Shipping Address</S.Title>
 
       <Input

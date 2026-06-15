@@ -8,11 +8,13 @@ import { CartItem, OrderResult, PlaceOrderRequest } from '../protos/demo';
 import { IProductCart } from '../types/Cart';
 import { useCurrency } from './Currency.provider';
 
+export type PlaceOrderArg = PlaceOrderRequest & { orderType?: string };
+
 interface IContext {
   cart: IProductCart;
   addItem(item: CartItem): void;
   emptyCart(): void;
-  placeOrder(order: PlaceOrderRequest): Promise<OrderResult>;
+  placeOrder(order: PlaceOrderArg): Promise<OrderResult>;
 }
 
 export const Context = createContext<IContext>({
@@ -65,7 +67,7 @@ const CartProvider = ({ children }: IProps) => {
   );
   const emptyCart = useCallback(() => emptyCartMutation.mutateAsync(), [emptyCartMutation]);
   const placeOrder = useCallback(
-    (order: PlaceOrderRequest) => placeOrderMutation.mutateAsync({ ...order, currencyCode: selectedCurrency }),
+    (order: PlaceOrderArg) => placeOrderMutation.mutateAsync({ ...order, currencyCode: selectedCurrency }),
     [placeOrderMutation, selectedCurrency]
   );
 

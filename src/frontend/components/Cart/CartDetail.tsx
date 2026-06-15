@@ -8,6 +8,7 @@ import CheckoutForm from '../CheckoutForm';
 import { IFormData } from '../CheckoutForm/CheckoutForm';
 import SessionGateway from '../../gateways/Session.gateway';
 import { useCart } from '../../providers/Cart.provider';
+import type { PlaceOrderArg } from '../../providers/Cart.provider';
 import { useCurrency } from '../../providers/Currency.provider';
 import * as S from '../../styles/Cart.styled';
 
@@ -24,6 +25,7 @@ const CartDetail = () => {
 
   const onPlaceOrder = useCallback(
     async ({
+      orderType,
       email,
       state,
       streetAddress,
@@ -52,7 +54,8 @@ const CartDetail = () => {
           creditCardExpirationYear,
           creditCardNumber,
         },
-      });
+        orderType,
+      } as PlaceOrderArg);
 
       push({
         pathname: `/cart/checkout/${order.orderId}`,

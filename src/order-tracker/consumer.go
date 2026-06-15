@@ -30,6 +30,16 @@ func (t *tracker) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.Co
 	return nil
 }
 
+// headerValue returns the value of a Kafka header by key, or "" if absent.
+func headerValue(headers []*sarama.RecordHeader, key string) string {
+	for _, h := range headers {
+		if string(h.Key) == key {
+			return string(h.Value)
+		}
+	}
+	return ""
+}
+
 func (t *tracker) handle(msg *sarama.ConsumerMessage) {
 	carrier := propagation.MapCarrier{}
 	for _, h := range msg.Headers {
@@ -42,8 +52,14 @@ func (t *tracker) handle(msg *sarama.ConsumerMessage) {
 		return
 	}
 
-	channel := "delivery" // TODO Phase D: derive from order metadata
-	storeID := order.GetShippingTrackingId()
+	channel := headerValue(msg.Headers, "pizzatel.order_type")
+	if channel == "" {
+		channel = "delivery" // default when the order didn't carry an order_type
+	}
+	storeID := headerValue(msg.Headers, "pizzatel.store_id")
+	if storeID == "" {
+		storeID = order.GetShippingTrackingId() // legacy fallback
+	}
 	prep := SamplePrepSeconds(channel)
 	sched := BuildSchedule(channel, prep, SampleDeliverySeconds())
 	st := OrderState{
