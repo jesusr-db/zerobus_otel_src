@@ -35,9 +35,10 @@ Confirm the model does **online feature lookup**, so the website sends entity ke
 
 ### 1.4 Entity-ID space (the join keys) — *CONFIRM*
 The website's pickers will emit the **exact synth IDs** your feature tables/online store are keyed on. Confirm the canonical columns:
-- profile → `synth_silver.guest_profile.profile_id`
-- loyalty → `member_id` (from guest_order / loyalty tables)
+- profile → **`synth_silver.guest_order.profile_id`** (integer 1–50,000) — this is the real join key for order history and loyalty. **Not** `guest_profile.guest_profile_id` (16-digit bigint), which is disjoint from order history.
+- loyalty → `member_id` from `loyalty_transaction` — **`member_id == profile_id`** (same 1–50,000 space, 100% match); `tier` from `loyalty_transaction` (platinum/gold/silver/bronze).
 - store → `synth_ref.unit.unit_id`
+- Display names in the picker are borrowed cosmetically from `guest_profile` (deterministic by rank); the ID emitted is always the real `profile_id` join key.
 
 ### 1.5 Item-ID space — ALREADY ALIGNED ✅
 The recommended item IDs must be **`menu_item_id`** (`synth_ref.menu_item`). This is already the storefront's catalog ID: catalog `product_id == str(menu_item_id)` (verified — id `1` = "Large Hand-Tossed Pepperoni" in both `synth_ref.menu_item` and the storefront `products.json`; training history `synth_silver.order_item.menu_item_id` is the same space). **No mapping table needed.**
