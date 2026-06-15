@@ -13,13 +13,19 @@ def _to_int(value, default=None):
 
 
 def build_request(profile_id, member_id, store_id, cart_product_ids, viewed_product_id, num):
+    # The deployed model signature requires NON-NULL int64 for every id field
+    # (verified live: member_id/viewed_product_id=null -> HTTP 400). So absent values
+    # become int sentinels, not null: profile/store/viewed -> -1; member -> profile_id
+    # (member_id == profile_id in this data per the contract §5).
     pid = _to_int(profile_id, default=-1)   # "guest"/empty/non-numeric -> -1 cold-start sentinel
     return {"dataframe_records": [{
         "profile_id": pid,
-        "member_id": _to_int(member_id),
-        "store_id": _to_int(store_id),
-        "cart_product_ids": [i for i in (_to_int(x) for x in (cart_product_ids or [])) if i is not None],
-        "viewed_product_id": _to_int(viewed_product_id),
+        "member_id": _to_int(member_id, default=pid),
+        "store_id": _to_int(store_id, default=-1),
+        # cart is a JSON STRING (not a raw array) so the model signature stays all-scalar
+        # (contract §3, verified live). Empty cart -> "[]".
+        "cart_product_ids": json.dumps([i for i in (_to_int(x) for x in (cart_product_ids or [])) if i is not None]),
+        "viewed_product_id": _to_int(viewed_product_id, default=-1),
         "num_recommendations": _to_int(num, default=5),
     }]}
 
