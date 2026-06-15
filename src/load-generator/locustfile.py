@@ -113,6 +113,25 @@ products = [
 people_file = open('people.json')
 people = json.load(people_file)
 
+# PizzaTel: a SAMPLE of real synth customer profiles (guest_order.profile_id, each with order
+# history + a loyalty tier — same ids the "shop as" picker uses). A portion of load-gen traffic
+# randomly adopts one so recommendations are personalized in the model and orders carry a real
+# store — a representative sampling, not a 1:1 map of every session to a profile.
+customer_profiles = [
+    {"profile_id": "748", "store_id": "4", "member_id": "748"},      # Curtis Guerrero (gold)
+    {"profile_id": "16954", "store_id": "85", "member_id": "16954"}, # Michael Cook (silver)
+    {"profile_id": "22227", "store_id": "112", "member_id": "22227"},# Joseph Espinoza (silver)
+    {"profile_id": "22491", "store_id": "113", "member_id": "22491"},# Shaun Kelley (silver)
+    {"profile_id": "45526", "store_id": "228", "member_id": "45526"},# Cynthia Dunn (platinum)
+    {"profile_id": "48532", "store_id": "243", "member_id": "48532"},# Lindsey Edwards (silver)
+    {"profile_id": "731", "store_id": "4", "member_id": "731"},      # Todd Gillespie (gold)
+    {"profile_id": "4613", "store_id": "24", "member_id": "4613"},   # Michael Smith (silver)
+    {"profile_id": "5761", "store_id": "29", "member_id": "5761"},   # Cassandra Davis (gold)
+    {"profile_id": "10425", "store_id": "53", "member_id": "10425"}, # Leah Peterson (gold)
+    {"profile_id": "14668", "store_id": "74", "member_id": "14668"}, # Mary Strong (silver)
+    {"profile_id": "21696", "store_id": "109", "member_id": "21696"},# Stephen Carter (platinum)
+]
+
 class WebsiteUser(HttpUser):
     wait_time = between(1, 10)
 
@@ -136,10 +155,14 @@ class WebsiteUser(HttpUser):
     @task(3)
     def get_recommendations(self):
         product = random.choice(products)
-        with self.tracer.start_as_current_span("user_get_recommendations", context=Context(), attributes={"product.id": product}):
-            logging.info(f"User getting recommendations for product: {product}")
+        customer = random.choice(customer_profiles)
+        with self.tracer.start_as_current_span("user_get_recommendations", context=Context(), attributes={"product.id": product, "profile.id": customer["profile_id"]}):
+            logging.info(f"User getting recommendations for product: {product} (profile {customer['profile_id']})")
             params = {
                 "productIds": [product],
+                "profileId": customer["profile_id"],
+                "storeId": customer["store_id"],
+                "memberId": customer["member_id"],
             }
             self.client.get("/api/recommendations", params=params)
 
@@ -180,25 +203,29 @@ class WebsiteUser(HttpUser):
     @task(1)
     def checkout(self):
         user = str(uuid.uuid1())
-        with self.tracer.start_as_current_span("user_checkout_single", context=Context(), attributes={"user.id": user}):
+        customer = random.choice(customer_profiles)
+        order_type = random.choice(["delivery", "carryout"])
+        with self.tracer.start_as_current_span("user_checkout_single", context=Context(), attributes={"user.id": user, "order.store_id": customer["store_id"], "order.type": order_type}):
             self.add_to_cart(user=user)
             checkout_person = random.choice(people)
             checkout_person["userId"] = user
-            self.client.post("/api/checkout", json=checkout_person)
-            logging.info(f"Checkout completed for user {user}")
+            self.client.post("/api/checkout", params={"storeId": customer["store_id"], "orderType": order_type}, json=checkout_person)
+            logging.info(f"Checkout completed for user {user} (store {customer['store_id']}, {order_type})")
 
     @task(1)
     def checkout_multi(self):
         user = str(uuid.uuid1())
+        customer = random.choice(customer_profiles)
+        order_type = random.choice(["delivery", "carryout"])
         item_count = random.choice([2, 3, 4])
         with self.tracer.start_as_current_span("user_checkout_multi", context=Context(),
-                                            attributes={"user.id": user, "item.count": item_count}):
+                                            attributes={"user.id": user, "item.count": item_count, "order.store_id": customer["store_id"], "order.type": order_type}):
             for i in range(item_count):
                 self.add_to_cart(user=user)
             checkout_person = random.choice(people)
             checkout_person["userId"] = user
-            self.client.post("/api/checkout", json=checkout_person)
-            logging.info(f"Multi-item checkout completed for user {user}")
+            self.client.post("/api/checkout", params={"storeId": customer["store_id"], "orderType": order_type}, json=checkout_person)
+            logging.info(f"Multi-item checkout completed for user {user} (store {customer['store_id']}, {order_type})")
 
     @task(5)
     def flood_home(self):
