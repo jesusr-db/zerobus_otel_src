@@ -29,9 +29,14 @@ Confirm the model does **online feature lookup**, so the website sends entity ke
 
 - **Payload format:** confirm `dataframe_records` vs `dataframe_split` vs `inputs` (MLflow signature).
 
-### 1.3 Response schema — *TO BE PROVIDED / CONFIRMED*
-- A **ranked list of `menu_item_id`** (most relevant first), optionally with scores. Confirm exact JSON shape and the field name.
-- Count: at most `num_recommendations`.
+### 1.3 Response schema — AGREED (model team's richer shape) ✅
+Per-row response (one entry per input row), each:
+```json
+{ "personalized": true, "recommendations": [ { "menu_item_id": 23, "score": 0.91 }, ... ] }
+```
+- `recommendations` is the **ranked list** the website consumes (`menu_item_id` first/most-relevant), at most `num_recommendations`.
+- `personalized` (bool) — false for the cold-start guest sentinel (see §1.6). The website may surface it but does not require it.
+- **The website reads `recommendations[].menu_item_id` and ignores any extra fields** the model adds (scores, debug, feature provenance, etc.) — extra fields are welcome and forward-compatible.
 
 ### 1.4 Entity-ID space (the join keys) — *CONFIRM*
 The website's pickers will emit the **exact synth IDs** your feature tables/online store are keyed on. Confirm the canonical columns:
@@ -46,7 +51,7 @@ The recommended item IDs must be **`menu_item_id`** (`synth_ref.menu_item`). Thi
 
 ### 1.6 Non-functional — *TO BE PROVIDED*
 - **Latency SLA** (p50/p99) so the website sets a sane client timeout.
-- **Cold-start:** behavior for an **unknown / guest profile** (the website sends a default guest `profile_id` when no one is "logged in"). What should the website send, and what will the model return (e.g. popularity fallback)? The website also has its own offline fallback (below), but the model's cold-start contract should be explicit.
+- **Cold-start — CONFIRMED:** the website sends the literal string sentinel **`profile_id = "guest"`** when no profile is selected (the `Session.gateway` default). Since real profile_ids are integers (1–50,000), `"guest"` is unambiguous. The model should detect it and return **`personalized: false`** with popular/non-personalized recommendations. (`member_id` is empty for guest.) The website also has its own offline fallback (below), but `"guest"` is a normal, expected input — not an error.
 
 ---
 
@@ -79,11 +84,15 @@ The recommended item IDs must be **`menu_item_id`** (`synth_ref.menu_item`). Thi
 }
 ```
 
-**Response** (illustrative):
+**Response** (agreed richer per-row shape; extra fields ignored by the website):
 ```json
-{ "predictions": [ { "menu_item_id": 23, "score": 0.91 }, { "menu_item_id": 7, "score": 0.88 } ] }
+{ "predictions": [
+  { "personalized": true,
+    "recommendations": [ { "menu_item_id": 23, "score": 0.91 }, { "menu_item_id": 7, "score": 0.88 } ] }
+] }
 ```
-Website maps `menu_item_id` → `str()` → resolves against the live catalog (the 68 pizza products) → renders in "You May Also Like".
+For the guest sentinel, the row would be `{ "personalized": false, "recommendations": [ ...popular... ] }`.
+Website reads `recommendations[].menu_item_id` → `str()` → resolves against the live catalog (the 68 pizza products) → renders in "You May Also Like". Any other fields (scores, provenance) are ignored.
 
 ---
 
