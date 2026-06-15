@@ -74,12 +74,16 @@ const Apis = () => ({
     });
   },
   listRecommendations(productIds: string[], currencyCode: string) {
+    const { storeId, profileId, memberId } = SessionGateway.getSession();
     return request<Product[]>({
       url: `${basePath}/recommendations`,
       queryParams: {
         productIds,
         sessionId: userId,
         currencyCode,
+        storeId,
+        profileId,
+        memberId,
       },
     });
   },
