@@ -6,6 +6,10 @@
 
 The endpoint is built, tested, and wired into the synthData setup/destroy jobs. No knowledge of synthData internals is required to integrate.
 
+> **STATUS: LIVE & VERIFIED** — `synth_qsr-recommender` is deployed and serving on the `jmrdemo` workspace. Verified end-to-end: personalized + cart-aware (pizza in cart → drinks/sides recommended, reasons reference the cart), same-subcategory suppression works (a soda in the cart returns no soda), and the cold-start path returns store-popular items. Backed by a Lakebase online feature store for the customer/store feature lookups.
+>
+> **⚠️ One contract change vs the original draft:** `cart_product_ids` is now sent as a **JSON string** (e.g. `"[1, 14]"`), not a raw array — see §3.
+
 ---
 
 ## 1. The endpoint
@@ -13,7 +17,7 @@ The endpoint is built, tested, and wired into the synthData setup/destroy jobs. 
 - **Model Serving endpoint name:** `synth_qsr-recommender`
 - **Invocation URL:** `https://<jmrdemo-workspace-host>/serving-endpoints/synth_qsr-recommender/invocations`
 - **Method:** `POST`, `Content-Type: application/json`
-- **Availability:** live after the synthData **setup job** completes its `build_feature_tables` → `train_recommender` tasks. Until then the endpoint does not exist — keep the flagd fallback ON.
+- **Availability:** **LIVE now.** (Recreated by the synthData setup job's `build_feature_tables` → `train_recommender` tasks on each deploy.) Endpoints scale to zero when idle, so the first call after idle has a few-seconds cold start — keep the flagd fallback ON for timeouts.
 - **Online feature lookup:** confirmed. The website sends entity keys + live cart; the endpoint does the online feature lookup internally. Do **not** send precomputed features.
 - (Optional, not needed for recs) a raw feature-lookup endpoint also exists: `synth_qsr-customer-features`. Ignore unless you want to display raw customer features.
 
@@ -24,7 +28,7 @@ The endpoint is built, tested, and wired into the synthData setup/destroy jobs. 
 
 ## 3. Request schema (send exactly this)
 
-`dataframe_records`, one record per call. **All IDs are integers.**
+`dataframe_records`, one record per call. IDs are integers **except `cart_product_ids`, which is a JSON string**.
 
 ```json
 {
@@ -33,7 +37,7 @@ The endpoint is built, tested, and wired into the synthData setup/destroy jobs. 
       "profile_id": 1234,
       "member_id": 5678,
       "store_id": 42,
-      "cart_product_ids": [1, 14],
+      "cart_product_ids": "[1, 14]",
       "viewed_product_id": 8,
       "num_recommendations": 5
     }
@@ -46,7 +50,7 @@ The endpoint is built, tested, and wired into the synthData setup/destroy jobs. 
 | `profile_id` | int | yes | The synth **`guest_order.profile_id`** (~1–50,000). **NOT** the 16-digit `guest_profile.guest_profile_id` (disjoint from order history). Anonymous/guest session → send a sentinel (e.g. `-1`) → cold-start. |
 | `member_id` | int / null | no | Loyalty member; `== profile_id` in this data. Optional — tier is derived from `profile_id`. Send it or `null`. |
 | `store_id` | int | yes | The synth **`unit_id`** (your store picker). Unknown → global-popularity fallback. |
-| `cart_product_ids` | int[] | yes | Live cart `menu_item_id`s, may be empty `[]`. These == your catalog `product_id`s. |
+| `cart_product_ids` | **string (JSON array)** | yes | Live cart `menu_item_id`s, **`json.dumps`'d** — e.g. `"[1, 14]"` (empty cart = `"[]"`). These ids == your catalog `product_id`s. Sent as a JSON string (not a raw array) so the model signature stays all-scalar. |
 | `viewed_product_id` | int / null | no | Item being viewed (product page). Folded into context and excluded from results. `null` elsewhere. |
 | `num_recommendations` | int | no | Default 5, clamped 1–10. |
 
@@ -107,7 +111,7 @@ curl -s -X POST \
   https://<jmrdemo-host>/serving-endpoints/synth_qsr-recommender/invocations \
   -H "Authorization: Bearer $DATABRICKS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"dataframe_records":[{"profile_id":1234,"member_id":1234,"store_id":42,"cart_product_ids":[1],"viewed_product_id":null,"num_recommendations":4}]}'
+  -d '{"dataframe_records":[{"profile_id":1234,"member_id":1234,"store_id":42,"cart_product_ids":"[1]","viewed_product_id":-1,"num_recommendations":4}]}'
 ```
 
 Expected: a pizza-only cart for a known customer returns a drink near the top; a cart that already contains a soda returns no second soda; a guest `profile_id` returns `personalized:false` with store-popular items.
