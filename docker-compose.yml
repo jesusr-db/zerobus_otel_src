@@ -431,6 +431,11 @@ services:
       - OTEL_COLLECTOR_PORT_GRPC
       - OTEL_RESOURCE_ATTRIBUTES
       - OTEL_SERVICE_NAME=image-provider
+    volumes:
+      # PizzaTel: serve the committed pizza menu images + hero banner, overlaying the base
+      # image's original (astronomy) assets. Previously only in pizzatel-test-override.yml;
+      # made default so `docker compose up` serves pizza imagery without the extra -f flag.
+      - ./src/image-provider/static:/static:ro
     depends_on:
       otel-collector:
         condition: service_started
