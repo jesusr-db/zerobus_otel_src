@@ -1,12 +1,22 @@
-# PizzaTel — Handoff (2026-06-13)
+# PizzaTel — Handoff (updated 2026-06-15)
 
 Re-theme of the OpenTelemetry Demo into a Domino's-style pizza shop ("PizzaTel") + migrate selected backends to Databricks. This handoff covers everything built so far and the direction for the next agent.
 
+## ⚠️ NEXT — REQUIRED before moving forward (do this first)
+**Run a FULL UI user-journey test + backend data verification before merging Plan 4b or starting any new work.** The recommendation-model integration (Plan 4b) was verified by *direct calls* to the live endpoint, but **not yet through the running UI**, because the local stack was torn down. Before proceeding:
+1. **Bring the full stack up** (`docker-compose.yml` + the pizzatel override; rebuild `frontend`/`recommendation` via the mirror recipe; refresh `DATABRICKS_API_TOKEN` — it expires ~daily and gates both the serving call and Zerobus export).
+2. **Full UI user journeys** (Playwright, localhost:8080) covering: browse → "shop as" profile + store pickers → add to cart → **flip `recommendationModelEnabled` ON** → confirm personalized recs render in "You May Also Like" (drink/side for a pizza cart; no second soda when one's in cart; store-popular for guest) → checkout (delivery AND carryout) → order-confirmation tracker advances.
+3. **Backend data verification (otel tables + Valkey):** query `jmrdemo.zerobus.otel_spans` for the `recommendation.model_call` span (`app.recommendation.source=model`, `personalized`, `cold_start`), the `order-tracker received order`/`stage:*` spans (child of checkout trace, real `store_id`/`channel`), and the rec request span attributes; check Valkey `tracker:<orderId>` shows the picked store + carryout/delivery schedule. Also confirm logs/metrics flowing.
+4. Capture results in `docs/journey-test-results-<date>.md`. Only after this passes: merge `feat/pizzatel-plan4b-recommendation-serving` to `main`.
+
+(Also still open: relay the calling principal `jesus.rodriguez@databricks.com` to the model team for `CAN_QUERY`; `main` is unpushed to `origin`.)
+
 ## TL;DR state
-- **Plan 1 (merged to `main`):** data layer — provisioning DAB (`jmrdemo.pizzatel` schema/volume + `pizzatel-seed-export` job), `product-catalog` serves 68 synth-sourced pizzas.
-- **Plan 2a (merged to `main`):** full frontend rebrand (palette/brand/banner/footer/header + category images), Cypress journeys.
-- **Plan 2b Phase A (on branch `feat/pizzatel-phase2b`):** `order-tracker` Go microservice — Kafka consumer → Valkey state + enriched OTEL spans. **Verified end-to-end.**
-- **Research/specs:** `research/pizzatel-otel-databricks_2026-06-11.md` (brainstorm + deep-dives), ADRs in `docs/adr/`, plans in `docs/superpowers/plans/`, prior summaries in `docs/baseline/`.
+- **Plan 1 / 2a / 2b (all merged to `main`):** data layer (`jmrdemo.pizzatel` + seed job, 68 synth pizzas); full frontend rebrand; `order-tracker` (Kafka→Valkey + tracker BFF/UI), CC menu imagery. Delivery fee fixed to $0 (synth-faithful).
+- **Plan 4a — Identity & Store context (merged):** "shop as profile/loyalty" + store pickers (synth-seeded), threaded into the recommendation request; verified UI + otel tables.
+- **Order-side store_id + channel threading (merged):** gRPC metadata → Kafka headers → order-tracker; real store + delivery/carryout in the tracker. Verified via Valkey.
+- **Plan 4b — Recommendation Model Serving (on branch `feat/pizzatel-plan4b-recommendation-serving`, NOT merged):** `recommendation` service calls the live Databricks `synth_qsr-recommender` endpoint (flag-gated `recommendationModelEnabled`, default OFF, fallback-safe). **Integration verified by direct endpoint calls** (HTTP 200, personalized/soda-suppression/guest cold-start) — see the REQUIRED next step above for the pending UI+backend verification. Contract + live findings in `docs/integration/` (`MODEL_TEAM_HANDOFF.md`, `recommender-integration-findings.md`, `recommendation-endpoint-contract.md`).
+- **Research/specs:** `research/pizzatel-otel-databricks_2026-06-11.md`, ADRs in `docs/adr/`, plans in `docs/superpowers/plans/`, summaries in `docs/baseline/` (incl. `plan4a-summary.md`, `plan4b-summary.md`, `order-store-threading-summary.md`).
 
 ## What's been DONE
 ### Plan 1 — pizza data layer (merged)

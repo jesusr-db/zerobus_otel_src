@@ -39,11 +39,70 @@ from metrics import (
 cached_ids = []
 first_run = True
 
+import external_recommender
+
+EXTERNAL_URL = os.environ.get("EXTERNAL_RECOMMENDATION_URL", "")
+API_TOKEN = os.environ.get("RECOMMENDATION_API_TOKEN", "")
+
+
+def _md(context, key):
+    for k, v in (context.invocation_metadata() or []):
+        if k == key:
+            return v
+    return ""
+
+
+def model_enabled():
+    # Kill-switch, defaults ON: calling the model endpoint is the DEFAULT action whenever
+    # it's configured. Absent/unreachable flagd -> still try the endpoint. Set the flagd
+    # flag recommendationModelEnabled=off to force the random fallback.
+    return api.get_client().get_boolean_value("recommendationModelEnabled", True)
+
+
+# Allow for endpoint cold-start (scale-to-zero wake can take several seconds) before
+# giving up — only fall back to random on a genuine error or non-response after this window.
+MODEL_TIMEOUT_SECONDS = 20.0
+
+
+def model_recommendations(product_ids, profile_id, member_id, store_id, viewed_product_id):
+    """Returns (ids, ok). ok=False -> caller falls back. Wrapped in a client span."""
+    with tracer.start_as_current_span("recommendation.model_call") as span:
+        span.set_attribute("app.recommendation.endpoint", "synth_qsr-recommender")
+        span.set_attribute("app.recommendation.store_id", str(store_id))
+        span.set_attribute("app.recommendation.profile_id", str(profile_id))
+        try:
+            payload = external_recommender.build_request(
+                profile_id, member_id, store_id, list(product_ids), viewed_product_id, 5)
+            ids, personalized = external_recommender.fetch_recommendations(
+                EXTERNAL_URL, API_TOKEN, payload, timeout=MODEL_TIMEOUT_SECONDS)
+            span.set_attribute("app.recommendation.personalized", personalized)
+            span.set_attribute("app.recommendation.model.count", len(ids))
+            span.set_attribute("app.recommendation.cold_start", not personalized)
+            return ids, len(ids) > 0
+        except Exception as e:
+            span.set_attribute("app.recommendation.fallback", True)
+            span.record_exception(e)
+            return [], False
+
+
 class RecommendationService(demo_pb2_grpc.RecommendationServiceServicer):
     def ListRecommendations(self, request, context):
-        prod_list = get_product_list(request.product_ids)
+        profile_id = _md(context, "rec-profile-id")
+        store_id = _md(context, "rec-store-id") or os.environ.get("RECOMMENDATION_DEFAULT_STORE_ID", "")
+        member_id = _md(context, "rec-member-id")
+        viewed_product_id = _md(context, "rec-viewed-product-id") or None
+
+        prod_list = []
+        used_model = False
+        if EXTERNAL_URL and model_enabled():
+            prod_list, used_model = model_recommendations(
+                request.product_ids, profile_id, member_id, store_id, viewed_product_id)
+        if not used_model:
+            prod_list = get_product_list(request.product_ids)
+
         span = trace.get_current_span()
         span.set_attribute("app.products_recommended.count", len(prod_list))
+        span.set_attribute("app.recommendation.source", "model" if used_model else "catalog")
         logger.info(f"Receive ListRecommendations for product ids:{prod_list}")
 
         # build and return response
@@ -51,7 +110,7 @@ class RecommendationService(demo_pb2_grpc.RecommendationServiceServicer):
         response.product_ids.extend(prod_list)
 
         # Collect metrics for this service
-        rec_svc_metrics["app_recommendations_counter"].add(len(prod_list), {'recommendation.type': 'catalog'})
+        rec_svc_metrics["app_recommendations_counter"].add(len(prod_list), {'recommendation.type': 'model' if used_model else 'catalog'})
 
         return response
 

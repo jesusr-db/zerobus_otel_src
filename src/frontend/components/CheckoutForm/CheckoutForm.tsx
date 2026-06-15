@@ -90,7 +90,7 @@ const CheckoutForm = ({ onSubmit }: IProps) => {
         <option value="carryout">Carryout</option>
       </Input>
 
-      <S.Title>Shipping Address</S.Title>
+      <S.Title>Delivery Address</S.Title>
 
       <Input
         label="E-mail Address"

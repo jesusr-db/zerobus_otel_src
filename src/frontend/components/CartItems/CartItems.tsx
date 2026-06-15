@@ -64,7 +64,7 @@ const CartItems = ({ productList, shouldShowPrice = true }: IProps) => {
       {shouldShowPrice && (
         <>
           <S.DataRow>
-            <span>Shipping</span>
+            <span>Delivery charge</span>
             <ProductPrice price={shippingConst} />
           </S.DataRow>
           <S.DataRow>

@@ -22,7 +22,8 @@ const handler = async ({ method, query }: NextApiRequest, res: NextApiResponse<T
       });
       const { productIds: productList } = await RecommendationsGateway.listRecommendations(
         sessionId as string,
-        productIds as string[]
+        productIds as string[],
+        { profileId: String(profileId), storeId: String(storeId), memberId: String(memberId) }
       );
       const recommendedProductList = await Promise.all(
         productList.slice(0, 4).map(id => ProductCatalogService.getProduct(id, currencyCode as string))
