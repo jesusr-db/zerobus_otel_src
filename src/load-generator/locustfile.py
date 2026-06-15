@@ -94,17 +94,20 @@ categories = [
     None,
 ]
 
+# PizzaTel: the product-catalog now serves pizza (numeric ids == synth menu_item_id).
+# The original Astronomy Shop SKUs (OLJCESPC7Z telescope, etc.) no longer exist in the
+# catalog, so carts built from them failed checkout with NOT_FOUND (~99% conversion loss).
+# These are the live pizza catalog ids (src/product-catalog/products/products.json).
 products = [
-    "0PUK6V6EV0",
-    "1YMWWN1N4O",
-    "2ZYFJ3GM2N",
-    "66VCHSJNUP",
-    "6E92ZMYYFZ",
-    "9SIQT8TOJO",
-    "L9ECAV7KIM",
-    "LS4PSXUNUM",
-    "OLJCESPC7Z",
-    "HQTGWGPNH4",
+    "1", "2", "3", "4", "5", "6", "7", "8",
+    "9", "10", "11", "12", "13", "14", "15", "16",
+    "17", "18", "19", "20", "21", "22", "23", "24",
+    "25", "26", "27", "28", "30", "31", "32", "33",
+    "34", "35", "36", "37", "38", "39", "40", "41",
+    "42", "43", "45", "46", "47", "48", "49", "50",
+    "51", "52", "53", "54", "55", "56", "57", "58",
+    "60", "61", "62", "63", "64", "65", "70", "71",
+    "72", "73", "74", "75",
 ]
 
 people_file = open('people.json')
