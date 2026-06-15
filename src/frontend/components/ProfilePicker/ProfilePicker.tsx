@@ -10,7 +10,11 @@ interface Profile { id: string; name: string; member_id: string | null; tier: st
 
 const ProfilePicker = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profileId, setProfileId] = useState<string>(SessionGateway.getSession().profileId);
+  const [profileId, setProfileId] = useState('guest');
+
+  useEffect(() => {
+    setProfileId(SessionGateway.getSession().profileId);
+  }, []);
 
   useEffect(() => {
     fetch('/api/profiles')

@@ -10,7 +10,10 @@ export type Profile = { id: string; name: string; member_id: string | null; tier
 type TResponse = { profiles: Profile[] };
 
 const handler = ({ method }: NextApiRequest, res: NextApiResponse<TResponse | string>) => {
-  if (method !== 'GET') return res.status(405).end();
+  if (method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).end();
+  }
   const file = path.join(process.cwd(), 'public', 'profiles.json');
   const data = JSON.parse(fs.readFileSync(file, 'utf-8')) as TResponse;
   return res.status(200).json(data);

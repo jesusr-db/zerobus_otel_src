@@ -10,7 +10,11 @@ interface Store { id: string; name: string; city: string; state: string; metro: 
 
 const StorePicker = () => {
   const [stores, setStores] = useState<Store[]>([]);
-  const [storeId, setStoreId] = useState<string>(SessionGateway.getSession().storeId);
+  const [storeId, setStoreId] = useState('');
+
+  useEffect(() => {
+    setStoreId(SessionGateway.getSession().storeId);
+  }, []);
 
   useEffect(() => {
     fetch('/api/stores')
