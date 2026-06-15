@@ -53,7 +53,15 @@ def _md(context, key):
 
 
 def model_enabled():
-    return api.get_client().get_boolean_value("recommendationModelEnabled", False)
+    # Kill-switch, defaults ON: calling the model endpoint is the DEFAULT action whenever
+    # it's configured. Absent/unreachable flagd -> still try the endpoint. Set the flagd
+    # flag recommendationModelEnabled=off to force the random fallback.
+    return api.get_client().get_boolean_value("recommendationModelEnabled", True)
+
+
+# Allow for endpoint cold-start (scale-to-zero wake can take several seconds) before
+# giving up — only fall back to random on a genuine error or non-response after this window.
+MODEL_TIMEOUT_SECONDS = 20.0
 
 
 def model_recommendations(product_ids, profile_id, member_id, store_id, viewed_product_id):
@@ -65,7 +73,8 @@ def model_recommendations(product_ids, profile_id, member_id, store_id, viewed_p
         try:
             payload = external_recommender.build_request(
                 profile_id, member_id, store_id, list(product_ids), viewed_product_id, 5)
-            ids, personalized = external_recommender.fetch_recommendations(EXTERNAL_URL, API_TOKEN, payload)
+            ids, personalized = external_recommender.fetch_recommendations(
+                EXTERNAL_URL, API_TOKEN, payload, timeout=MODEL_TIMEOUT_SECONDS)
             span.set_attribute("app.recommendation.personalized", personalized)
             span.set_attribute("app.recommendation.model.count", len(ids))
             span.set_attribute("app.recommendation.cold_start", not personalized)
