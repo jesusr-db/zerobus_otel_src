@@ -50,6 +50,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
@@ -286,6 +287,13 @@ func (cs *checkout) Watch(req *healthpb.HealthCheckRequest, ws healthpb.Health_W
 	return status.Errorf(codes.Unimplemented, "health check via Watch not implemented")
 }
 
+func firstMD(md metadata.MD, key string) string {
+	if v := md.Get(key); len(v) > 0 {
+		return v[0]
+	}
+	return ""
+}
+
 func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (*pb.PlaceOrderResponse, error) {
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(
@@ -298,6 +306,10 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		slog.String("user_id", req.UserId),
 		slog.String("user_currency", req.UserCurrency),
 	)
+
+	md, _ := metadata.FromIncomingContext(ctx)
+	storeID := firstMD(md, "pizzatel-store-id")
+	orderType := firstMD(md, "pizzatel-order-type")
 
 	var err error
 	defer func() {
@@ -385,7 +397,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 	// send to kafka only if kafka broker address is set
 	if cs.kafkaBrokerSvcAddr != "" {
 		logger.Info("sending to postProcessor")
-		cs.sendToPostProcessor(ctx, orderResult)
+		cs.sendToPostProcessor(ctx, orderResult, storeID, orderType)
 	}
 
 	resp := &pb.PlaceOrderResponse{Order: orderResult}
@@ -608,7 +620,7 @@ func (cs *checkout) shipOrder(ctx context.Context, address *pb.Address, items []
 	return shipResp.TrackingID, nil
 }
 
-func (cs *checkout) sendToPostProcessor(ctx context.Context, result *pb.OrderResult) {
+func (cs *checkout) sendToPostProcessor(ctx context.Context, result *pb.OrderResult, storeID, orderType string) {
 	message, err := proto.Marshal(result)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Failed to marshal message to protobuf: %+v", err))
@@ -623,6 +635,12 @@ func (cs *checkout) sendToPostProcessor(ctx context.Context, result *pb.OrderRes
 	// Inject tracing info into message
 	span := createProducerSpan(ctx, &msg)
 	defer span.End()
+
+	// Append PizzaTel routing headers (after trace headers so both coexist)
+	msg.Headers = append(msg.Headers,
+		sarama.RecordHeader{Key: []byte("pizzatel.store_id"), Value: []byte(storeID)},
+		sarama.RecordHeader{Key: []byte("pizzatel.order_type"), Value: []byte(orderType)},
+	)
 
 	// Send message and handle response
 	startTime := time.Now()
