@@ -52,11 +52,12 @@ const Apis = () => ({
     });
   },
 
-  placeOrder({ currencyCode, ...order }: PlaceOrderRequest & { currencyCode: string }) {
+  placeOrder({ currencyCode, orderType, ...order }: PlaceOrderRequest & { currencyCode: string; orderType?: string }) {
+    const { storeId } = SessionGateway.getSession();
     return request<IProductCheckout>({
       url: `${basePath}/checkout`,
       method: 'POST',
-      queryParams: { currencyCode },
+      queryParams: { currencyCode, storeId, orderType: orderType ?? 'delivery' },
       body: order,
     });
   },
