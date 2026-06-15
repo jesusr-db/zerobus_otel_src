@@ -3,6 +3,8 @@
 
 import CartIcon from '../CartIcon';
 import CurrencySwitcher from '../CurrencySwitcher';
+import StorePicker from '../StorePicker';
+import ProfilePicker from '../ProfilePicker';
 import * as S from './Header.styled';
 
 const Header = () => {
@@ -14,6 +16,8 @@ const Header = () => {
             <S.BrandImg />
           </S.NavBarBrand>
           <S.Controls>
+            <ProfilePicker />
+            <StorePicker />
             <CurrencySwitcher />
             <CartIcon />
           </S.Controls>

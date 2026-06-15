@@ -27,3 +27,31 @@ def menu_item_to_product(row: dict) -> dict:
         "priceUsd": usd_money(float(row["base_price"])),
         "categories": categories,
     }
+
+
+def unit_to_store(row: dict) -> dict:
+    """synth_ref.unit row -> compact store doc for the storefront picker."""
+    return {
+        "id": str(row["unit_id"]),
+        "name": row["unit_name"],
+        "city": row["city"],
+        "state": row["state"],
+        "metro": row["metro_area"],
+    }
+
+
+def profile_to_doc(row: dict) -> dict:
+    """guest_profile (+ joined loyalty member_id/tier) -> 'shop as' picker doc.
+
+    member_id is None when the profile has no loyalty membership; tier falls back
+    to the string "None" so the UI always has a label.
+    """
+    member_id = row.get("member_id")
+    return {
+        "id": str(row["guest_profile_id"]),
+        "name": f'{row["first_name"]} {row["last_name"]}',
+        "member_id": str(member_id) if member_id is not None else None,
+        "tier": str(row.get("tier")),
+        "home_store_id": str(row["unit_id"]),
+        "zip": row["zip_code"],
+    }

@@ -23,9 +23,9 @@ The model/feature-store work moves to a separate project. The website's job shri
 **Why first:** nothing can be personalized until the storefront can say *who* the customer is and *which* store — and those IDs must be the **exact entity keys** the model's feature store is keyed on.
 
 ### Components
-- **"Shop as" profile/loyalty picker** — a selector that sets the active `profile_id` (+ `member_id` and loyalty tier) for the session. Sourced from `synth_silver.guest_profile` + loyalty (`loyalty_transaction` / `loyalty_cohort_metrics`).
+- **"Shop as" profile/loyalty picker** — a selector that sets the active `profile_id` (+ `member_id` and loyalty tier) for the session. Sourced from **`synth_silver.guest_order.profile_id`** (1–50,000, the real join key) + loyalty (`loyalty_transaction`). **Important:** `guest_profile.guest_profile_id` (16-digit bigint) is disjoint from order history — the picker uses `guest_order.profile_id` as the canonical ID, with cosmetic display names borrowed from `guest_profile`. `member_id == profile_id` (100% match in the 1–50,000 space).
 - **Store picker** — grouped (by metro/region) selector setting the active `store_id`. Sourced from `synth_ref.unit` (the 250 stores already seeded to `jmrdemo.pizzatel.stores`). (Absorbs the previously-deferred Plan 2b Phase D.)
-- **Reference-data export** — extend `provisioning/src/seed_export_notebook.py` to also emit `profiles.json` (a demo-sized sample of `guest_profile` + loyalty tier) and `stores.json`, carrying the **canonical synth entity IDs** (`profile_id`, `member_id`, `unit_id`). These back the pickers.
+- **Reference-data export** — `provisioning/src/seed_export_notebook.py` emits `profiles.json` (50 top-ordered profiles keyed on `guest_order.profile_id` with real loyalty tier from `loyalty_transaction`) and `stores.json`, carrying the **canonical synth entity IDs** (`profile_id`, `member_id`, `unit_id`). These back the pickers.
 
 ### Threading
 `profile_id` / `member_id` / `store_id` flow: session/context → cart → checkout → and into the recommendation call. Carried in the frontend session + request payloads (no gRPC/proto changes; threaded via the BFF request like other session fields). Default to a **guest profile** when nothing is picked (cold-start, see contract).
