@@ -6,12 +6,18 @@ import { v4 } from 'uuid';
 interface ISession {
   userId: string;
   currencyCode: string;
+  storeId: string;
+  profileId: string;
+  memberId: string;
 }
 
 const sessionKey = 'session';
 const defaultSession = {
   userId: v4(),
   currencyCode: 'USD',
+  storeId: '',
+  profileId: 'guest',
+  memberId: '',
 };
 
 const SessionGateway = () => ({
