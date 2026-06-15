@@ -63,7 +63,7 @@ const Checkout: NextPage = () => {
             </S.LeftColumn>
 
             <S.RightColumn>
-              <S.SectionTitle>Shipping Address</S.SectionTitle>
+              <S.SectionTitle>Delivery Address</S.SectionTitle>
               <S.AddressText>{shippingAddress.streetAddress}</S.AddressText>
               <S.AddressText>{shippingAddress.city}, {shippingAddress.state} {shippingAddress.zipCode}</S.AddressText>
               <S.AddressText>{shippingAddress.country}</S.AddressText>
@@ -100,7 +100,7 @@ const Checkout: NextPage = () => {
 
               <S.OrderSummary>
                 <S.SummaryRow>
-                  <span>Shipping:</span>
+                  <span>Delivery charge:</span>
                   <ProductPrice price={shippingCost} />
                 </S.SummaryRow>
                 <S.TotalRow>

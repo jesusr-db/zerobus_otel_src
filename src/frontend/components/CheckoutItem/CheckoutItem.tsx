@@ -51,7 +51,7 @@ const CheckoutItem = ({
         </S.Details>
       </S.ItemDetails>
       <S.ShippingData>
-        <S.ItemName>Shipping Data</S.ItemName>
+        <S.ItemName>Delivery Data</S.ItemName>
         <p>Street: {streetAddress}</p>
         {!isCollapsed && <S.SeeMore onClick={() => setIsCollapsed(true)}>See More</S.SeeMore>}
         {isCollapsed && (
