@@ -599,6 +599,9 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES
       - OTEL_SERVICE_NAME=recommendation
       - PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+      - EXTERNAL_RECOMMENDATION_URL
+      - RECOMMENDATION_API_TOKEN=${DATABRICKS_API_TOKEN}
+      - RECOMMENDATION_DEFAULT_STORE_ID
     depends_on:
       product-catalog:
         condition: service_started
