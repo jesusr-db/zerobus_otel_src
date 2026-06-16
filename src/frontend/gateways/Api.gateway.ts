@@ -53,7 +53,8 @@ const Apis = () => ({
   },
 
   placeOrder({ currencyCode, orderType, ...order }: PlaceOrderRequest & { currencyCode: string; orderType?: string }) {
-    const { storeId } = SessionGateway.getSession();
+    // default to '' so a stale session missing storeId never sends the string "undefined"
+    const { storeId = '' } = SessionGateway.getSession();
     return request<IProductCheckout>({
       url: `${basePath}/checkout`,
       method: 'POST',
@@ -75,7 +76,8 @@ const Apis = () => ({
     });
   },
   listRecommendations(productIds: string[], currencyCode: string) {
-    const { storeId, profileId, memberId } = SessionGateway.getSession();
+    // defaults so a stale session never emits the string "undefined" for these ids
+    const { storeId = '', profileId = 'guest', memberId = '' } = SessionGateway.getSession();
     return request<Product[]>({
       url: `${basePath}/recommendations`,
       queryParams: {
