@@ -84,13 +84,15 @@ def get_flagd_value(FlagName):
     client = api.get_client()
     return client.get_integer_value(FlagName, 0)
 
+# PizzaTel: ad context categories = the pizza menu categories (match the ad service inventory
+# + the storefront product categories). 'salads'/None exercise the non-targeted/random branch.
 categories = [
-    "binoculars",
-    "telescopes",
-    "accessories",
-    "assembly",
-    "travel",
-    "books",
+    "pizza",
+    "drinks",
+    "sides",
+    "desserts",
+    "wings",
+    "salads",
     None,
 ]
 

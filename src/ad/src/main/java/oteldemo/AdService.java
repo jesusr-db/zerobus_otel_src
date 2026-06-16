@@ -271,49 +271,40 @@ public final class AdService {
   }
 
   private static ImmutableListMultimap<String, Ad> createAdsMap() {
-    Ad binoculars =
+    // PizzaTel: ads re-themed to the pizza menu, keyed by the storefront's product
+    // categories (pizza/drinks/sides/desserts/wings) with valid pizza product redirects.
+    Ad pizzaDeal =
         Ad.newBuilder()
-            .setRedirectUrl("/product/2ZYFJ3GM2N")
-            .setText("Roof Binoculars for sale. 50% off.")
+            .setRedirectUrl("/product/1")
+            .setText("Large Hand-Tossed Pepperoni — buy one, get a Medium 1-topping free!")
             .build();
-    Ad explorerTelescope =
+    Ad drinkDeal =
         Ad.newBuilder()
-            .setRedirectUrl("/product/66VCHSJNUP")
-            .setText("Starsense Explorer Refractor Telescope for sale. 20% off.")
+            .setRedirectUrl("/product/50")
+            .setText("2-Liter Coca-Cola — just $1 with any pizza.")
             .build();
-    Ad colorImager =
+    Ad sidesDeal =
         Ad.newBuilder()
-            .setRedirectUrl("/product/0PUK6V6EV0")
-            .setText("Solar System Color Imager for sale. 30% off.")
+            .setRedirectUrl("/product/30")
+            .setText("Garlic Bread Twists — 50% off when you add a side.")
             .build();
-    Ad opticalTube =
+    Ad dessertDeal =
         Ad.newBuilder()
-            .setRedirectUrl("/product/9SIQT8TOJO")
-            .setText("Optical Tube Assembly for sale. 10% off.")
+            .setRedirectUrl("/product/60")
+            .setText("Lava Cake (2pc) — sweeten your order, 30% off.")
             .build();
-    Ad travelTelescope =
+    Ad wingsDeal =
         Ad.newBuilder()
-            .setRedirectUrl("/product/1YMWWN1N4O")
-            .setText(
-                "Eclipsmart Travel Refractor Telescope for sale. Buy one, get second kit for free")
-            .build();
-    Ad solarFilter =
-        Ad.newBuilder()
-            .setRedirectUrl("/product/6E92ZMYYFZ")
-            .setText("Solar Filter for sale. Buy two, get third one for free")
-            .build();
-    Ad cleaningKit =
-        Ad.newBuilder()
-            .setRedirectUrl("/product/L9ECAV7KIM")
-            .setText("Lens Cleaning Kit for sale. Buy one, get second one for free")
+            .setRedirectUrl("/product/20")
+            .setText("8pc Buffalo Wings — buy one order, get one free.")
             .build();
     return ImmutableListMultimap.<String, Ad>builder()
-        .putAll("binoculars", binoculars)
-        .putAll("telescopes", explorerTelescope)
-        .putAll("accessories", colorImager, solarFilter, cleaningKit)
-        .putAll("assembly", opticalTube)
-        .putAll("travel", travelTelescope)
-        // Keep the books category free of ads to ensure the random code branch is tested
+        .putAll("pizza", pizzaDeal)
+        .putAll("drinks", drinkDeal)
+        .putAll("sides", sidesDeal)
+        .putAll("desserts", dessertDeal)
+        .putAll("wings", wingsDeal)
+        // Keep the salads category free of ads to ensure the random code branch is tested
         .build();
   }
 
