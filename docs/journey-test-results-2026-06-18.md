@@ -46,3 +46,26 @@ The approve button lacked `disabled={busy}` (unlike Send), so a fast double-clic
 - Unit suite: 12/12 green; `tsc` clean
 - Deployed-app: 2 build/runtime bugs found + fixed + re-verified PASS; 1 review bug fixed
 - Design confirmed with owner: widget is **always-on (flag-gated), inherits the selected dropdown profile** (guest by default) — the plan's "login-triggered" phrasing meant this, not a separate auth gate.
+
+---
+
+## Live test against the REAL deployed agent (`synth_qsr-commerce-agent`)
+
+**Wiring:** local app pointed at the real endpoint via a git-ignored `docker-compose.override.yml` (`AGENT_ENDPOINT_URL` + `AGENT_API_TOKEN` from `databricks auth token --profile DEFAULT`). Frontend rebuilt to include the parser-alignment commit (1e5affe). Verified `mock_mode` off: BFF returns genuine LLM replies.
+
+### Journey J2 — multi-turn order via the real agent
+**Session:** storeId=42, profileId=1234, memberId=1234.
+- The real agent is **conversational** (asks a clarifying question before proposing) — unlike the one-shot mock. Reached `propose_order` with the contract's Example-A phrasing ("…that's everything, place it for delivery").
+- Proposal rendered: **2× Large Hand-Tossed Pepperoni $31.98 + 1× 20oz Coca-Cola $2.29, Subtotal $34.27** (BFF-priced from live catalog; agent's indicative prices dropped).
+- **Place order → `/cart/checkout/<orderId>`**; Valkey `tracker:<orderId>` confirmed for two distinct real-agent orders (4cacf7fc…, 9eb5960f…).
+- Parser handled the real envelope (`output[0].content[0].text`) and dropped the `MLFLOW_NO_OP_SPAN_TRACE_ID` sentinel (so `agent.mlflow.trace_id` stays absent, as the model team requested).
+
+**Verdict: PASS** — real-agent proposal → real order → checkout → tracker, end to end.
+
+### New finding (real-agent path) — envoy proxy 504 on cold-start (FIXED, commit 6ce0d9c)
+First-turn cold-start tool-chaining took >15s; the envoy frontend-proxy's **default 15s route timeout** cut the request → **504 Gateway Timeout** surfaced as "Something went wrong" *before* the BFF's 30s graceful fallback could apply. Direct curl measured the proposal turn at **13.1s** (model team quoted p99 ≤12s — real cold-start tool-chaining runs hotter). **Fix:** dedicated `/api/agent-chat` envoy route with `timeout: 35s` (> BFF's 30s). Re-ran after the fix → turn 0 succeeded, order placed, no 504.
+
+### Recommendations (not blocking)
+- **Pre-warm ping on chat-open** (plan already suggests this) would mask the scale-to-zero cold start on the first user turn — worth adding for demos.
+- **Trace-stitch** stays dark until the model team enables in-serving MLflow tracing (§6); web wiring is ready and will light up with no change once `mlflow_trace_id` becomes a real id.
+- Token in the override is a short-lived OAuth token (~1h); re-run `databricks auth token` to refresh for longer sessions, or wire the `commerce_agent_query_principal` SP grant for a durable cred.
