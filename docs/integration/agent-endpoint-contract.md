@@ -18,6 +18,7 @@ The storefront mounts a chat widget on login. It calls a Databricks Model Servin
 
 | Date | Team | Note |
 |------|------|------|
+| 2026-06-18 | model | **Replied to all 7 open questions — see §0.1 below.** Decisions: (1) `ResponsesAgent`; (2) **stateless**, web resends full history 🟩; (3) **agent owns all data-side tools** 🟩 (matches your preference); (4) `propose_order` schema confirmed + enriched with indicative prices — see §3.1; (5) yes, we honor `app_trace_context` and return our MLflow `trace_id` 🟩; (6) latency SLA + guest behavior proposed in §5 🟨; (7) OTLP-alongside-experiment is a verification task we own, finding to follow. **One thing to confirm back:** pricing authority — agent returns *indicative* prices for the confirm card; we assume **your BFF re-prices at `place_order` as source of truth**. Confirm. Real example request/response + live endpoint URL land here once the agent is deployed (plan Task 9). |
 | 2026-06-18 | web | Initial contract drafted from the 2026-06-18 brainstorm. All 🟥 items below are open questions for the model team. Top priority: **§2.1 agent flavor + payload format** (blocks the entire BFF request builder) and **§3 the `place_order` tool-call schema**. |
 
 ### Open questions for the model team (quick list)
@@ -26,8 +27,34 @@ The storefront mounts a chat widget on login. It calls a Databricks Model Servin
 3. 🟥 For each context signal (preferences, order history, local/holiday), does the **agent fetch it via its own Databricks tools**, or does the **web BFF pre-fetch and pass it in**? (§2.3)
 4. 🟥 Exact `propose_order` tool-call JSON the agent emits. (§3.1)
 5. 🟥 Will the agent honor `app_trace_context` and return its MLflow `trace_id`? (§3.2)
-6. 🟥 Latency SLA + cold-start behavior on an interactive surface. (§5)
-7. 🟥 Can OTLP export run **alongside** the MLflow experiment trace store on your serving runtime? (governs the tracing stretch goal — §6)
+6. 🟨 Latency SLA + cold-start behavior on an interactive surface. (§5) — proposed below, confirm after first load test.
+7. 🟨 Can OTLP export run **alongside** the MLflow experiment trace store on your serving runtime? (governs the tracing stretch goal — §6) — model team owns this verification; finding to follow.
+
+### 0.1 Model team reply — 2026-06-18
+
+The agent project lives in the **`qsr-synth-data-generator`** repo (`synthData`, FY27) — same repo that ships the `synth_qsr-recommender` and `synth_qsr-customer-features` endpoints you already consume. Build plan: `docs/superpowers/plans/2026-06-18-pizzatel-commerce-agent.md` in that repo. Answers, keyed to your sections:
+
+- **§1 Endpoint & auth.** Endpoint name (our naming convention): **`synth_qsr-commerce-agent`** — your `pizzatel-agent` alias is fine, this is the Model Serving name you POST to. UC model: `jmrdemo.synth_features.qsr_commerce_agent`. Auth: **PAT/SP with `CAN_QUERY`**, granted in setup via a `commerce_agent_query_principal` job param (same pattern as `recommender_query_principal`). OAuth M2M on the roadmap. MLflow experiment path will be posted here after first deploy.
+- **§2.1 Agent flavor 🟩 `ResponsesAgent`** (MLflow `mlflow.pyfunc` ResponsesAgent — current GA pattern, supersedes ChatAgent, native tool-calling + Tracing). Invocation is the **Responses input shape**: `{"input": [{"role":"user","content":"..."}], "custom_inputs": {...}}`. A real request/response example lands here after deploy (Task 9) — that resolves the signature faster than prose, agreed.
+- **§2.2 Conversation state 🟩 STATELESS.** You resend the full message array every turn in `input`. No server-held `conversation_id`. Per-session correlation is via `app_trace_context` (§3.2).
+- **§2.3 Context & tool ownership 🟩 AGENT OWNS ALL DATA-SIDE TOOLS.** `profile_id`/`member_id`/`store_id` come in `custom_inputs`; the agent does every lookup server-side (keeps identity keys + join logic on our side, mirrors the recommender). Tool map: menu/catalog → `search_menu` (`synth_ref.menu_item`+`item_price`); recs → `get_recommendations` (calls the existing `synth_qsr-recommender`); preferences → `get_customer_context` (feature serving + masked profile); order history → `get_order_history` (`synth_silver.guest_order`/`order_item`); local/holiday → `get_occasion_context` (`synth_ref.local_events`). You do **not** pre-fetch any of these.
+- **§3.1 `propose_order` schema 🟩 (confirm enrichment).** Agent emits ints for `menu_item_id` and never places the order — you execute `place_order`. We **enrich** your proposed shape with indicative pricing for the confirm card:
+  ```json
+  {
+    "tool": "propose_order",
+    "items": [ { "menu_item_id": 1, "quantity": 2, "item_name": "Large Pepperoni", "unit_price": 14.99 } ],
+    "order_type": "delivery",
+    "subtotal": 29.98, "tax_estimate": 2.70, "total": 32.68, "currency": "USD",
+    "pricing_note": "indicative — BFF is pricing authority at place_order"
+  }
+  ```
+  **Confirm:** you re-price authoritatively at `place_order` (our prices are display-only). IDs are ints in and out.
+- **§2.4 Per-turn response 🟥→ Task 9.** ResponsesAgent returns output items: an assistant **text** message (chat bubble) plus, when proposing, a structured `propose_order` item in `custom_outputs` so you render the confirm card without parsing free text. Exact envelope + example posted after deploy.
+- **§3.2 Trace stitch 🟩 YES.** Send `app_trace_context` (W3C `traceparent`) **in the request payload** (`custom_inputs.app_trace_context`) — agreed, not an HTTP header. We record it as MLflow trace tag **`app.trace_id`** and **return our MLflow `trace_id`** in `custom_outputs.mlflow_trace_id` so you can stamp `agent.mlflow.trace_id` on your OTel span. Two backends, JOIN-able on ID, no exporter collision.
+- **§5 Non-functional 🟨 PROPOSED.** Latency target **p50 ≤ 3s** (text-only turn), **p99 ≤ 12s** (tool-chaining turn); set client timeout **30s**. Endpoint is `scale_to_zero` — recommend your **pre-warm ping on chat-open** (cold start is visible on a live chat). Guest: `profile_id="guest"` → agent skips `get_customer_context`/`get_order_history` and uses store-popularity recs (recommender cold-start path, `personalized:false`). Confirm after first load test.
+- **§6 OTLP verification 🟨 OURS.** We own verifying whether `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` export coexists with the in-experiment MLflow trace store on the deployed serving runtime (governs your single-pane "Option 3" stretch). Finding posted here.
+
+> **All model models route through Databricks AI Gateway.** The agent never calls a foundation model directly — it targets an AI-Gateway-fronted serving endpoint (`synth_qsr-agent-llm`) configured with usage tracking, rate limits, and PII guardrails. This is the cost/safety choke point and is created/torn down by our setup/destroy jobs.
 
 ---
 
