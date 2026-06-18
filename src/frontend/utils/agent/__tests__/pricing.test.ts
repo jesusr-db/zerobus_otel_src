@@ -33,6 +33,7 @@ describe('priceProposal', () => {
     expect(out.lines[0].lineTotal).toBeCloseTo(25.98, 2);
     expect(out.subtotal).toBeCloseTo(30.98, 2);
     expect(out.currencyCode).toBe('USD');
+    expect(out.orderType).toBe('delivery'); // defaults when not supplied
   });
 
   it('drops items whose menu_item_id is not in the catalog', () => {
@@ -40,5 +41,11 @@ describe('priceProposal', () => {
     const out = priceProposal([{ menuItemId: 1, quantity: 1 }, { menuItemId: 999, quantity: 3 }], products, 'USD');
     expect(out.lines).toHaveLength(1);
     expect(out.subtotal).toBeCloseTo(10, 2);
+  });
+
+  it('carries the proposed order type through to the priced proposal', () => {
+    const products = new Map<string, Product>([['1', product('1', 'Large Pepperoni', 10)]]);
+    const out = priceProposal([{ menuItemId: 1, quantity: 1 }], products, 'USD', 'pickup');
+    expect(out.orderType).toBe('pickup');
   });
 });

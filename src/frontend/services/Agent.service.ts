@@ -63,7 +63,7 @@ export async function runAgentTurn(
     })
   );
   const products = new Map<string, Product>(entries.filter(Boolean) as Array<readonly [string, Product]>);
-  const priced = priceProposal(reply.proposal.items, products, ctx.currencyCode);
+  const priced = priceProposal(reply.proposal.items, products, ctx.currencyCode, reply.proposal.orderType);
   return { ...reply, priced };
 }
 

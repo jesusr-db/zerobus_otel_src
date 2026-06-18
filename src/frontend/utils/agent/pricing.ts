@@ -16,6 +16,7 @@ export interface PricedProposal {
   lines: PricedLine[];
   currencyCode: string;
   subtotal: number;
+  orderType: string;
 }
 
 export function moneyToNumber(m?: Money): number {
@@ -29,7 +30,8 @@ export function moneyToNumber(m?: Money): number {
 export function priceProposal(
   items: ProposedItem[],
   products: Map<string, Product>,
-  currencyCode: string
+  currencyCode: string,
+  orderType = 'delivery'
 ): PricedProposal {
   const lines: PricedLine[] = [];
   for (const item of items) {
@@ -45,5 +47,5 @@ export function priceProposal(
     });
   }
   const subtotal = lines.reduce((sum, l) => sum + l.lineTotal, 0);
-  return { lines, currencyCode, subtotal };
+  return { lines, currencyCode, subtotal, orderType };
 }

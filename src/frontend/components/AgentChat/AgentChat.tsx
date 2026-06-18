@@ -80,7 +80,7 @@ const AgentChat = () => {
         address: DEMO_CHECKOUT.address,
         userCurrency: selectedCurrency,
         creditCard: DEMO_CHECKOUT.creditCard,
-        orderType: 'delivery',
+        orderType: proposal.orderType,
       } as PlaceOrderArg);
       setProposal(undefined);
       setMessages(m => [...m, { role: 'assistant', content: `Order placed! Confirmation #${order.orderId}. Opening your tracker…` }]);
