@@ -104,8 +104,8 @@ export function parseAgentResponse(raw: unknown): AgentReply {
   const p = co.propose_order as Record<string, unknown> | undefined;
   if (p && Array.isArray(p.items)) {
     const items: ProposedItem[] = p.items
-      .map((it: unknown) => it as Record<string, unknown>)
-      .filter(it => typeof it.menu_item_id === 'number' && typeof it.quantity === 'number')
+      .map((it: unknown) => it as Record<string, unknown> | null)
+      .filter((it): it is Record<string, unknown> => it != null && Number.isInteger(it.menu_item_id) && typeof it.quantity === 'number')
       .map(it => ({ menuItemId: it.menu_item_id as number, quantity: it.quantity as number }));
     if (items.length) out.proposal = { items, orderType: typeof p.order_type === 'string' ? p.order_type : 'delivery' };
   }

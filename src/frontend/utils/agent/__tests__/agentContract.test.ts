@@ -59,4 +59,15 @@ describe('parseAgentResponse', () => {
     expect(out.reply.length).toBeGreaterThan(0);
     expect(out.proposal).toBeUndefined();
   });
+
+  it('does not throw on null/invalid items; keeps only valid integer-id items', () => {
+    const out = parseAgentResponse({
+      output_text: 'ok',
+      custom_outputs: {
+        propose_order: { items: [null, { menu_item_id: 1.5, quantity: 1 }, { menu_item_id: 7, quantity: 2 }], order_type: 'pickup' },
+      },
+    });
+    expect(out.reply).toBe('ok');
+    expect(out.proposal).toEqual({ items: [{ menuItemId: 7, quantity: 2 }], orderType: 'pickup' });
+  });
 });
