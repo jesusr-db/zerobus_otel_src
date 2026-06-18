@@ -127,6 +127,12 @@
         "10000x": 10000
       },
       "defaultVariant": "off"
+    },
+    "agentEnabled": {
+      "description": "Show the agentic commerce chatbot widget",
+      "state": "ENABLED",
+      "variants": { "on": true, "off": false },
+      "defaultVariant": "on"
     }
   }
 }
