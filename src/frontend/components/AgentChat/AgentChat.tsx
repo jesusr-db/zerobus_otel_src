@@ -3,11 +3,22 @@
 
 import { useCallback, useState } from 'react';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
+import { useRouter } from 'next/router';
 import ApiGateway from '../../gateways/Api.gateway';
+import { useCart } from '../../providers/Cart.provider';
+import { useCurrency } from '../../providers/Currency.provider';
+import SessionGateway from '../../gateways/Session.gateway';
+import type { PlaceOrderArg } from '../../providers/Cart.provider';
 import type { AgentChatMessage } from '../../utils/agent/agentContract';
 import type { AgentTurnResult } from '../../services/Agent.service';
 import type { PricedProposal } from '../../utils/agent/pricing';
 import * as S from './AgentChat.styled';
+
+const DEMO_CHECKOUT = {
+  email: 'someone@example.com',
+  address: { streetAddress: '1600 Amphitheatre Parkway', city: 'Mountain View', state: 'CA', country: 'United States', zipCode: '94043' },
+  creditCard: { creditCardNumber: '4432801561520454', creditCardCvv: 672, creditCardExpirationYear: 2030, creditCardExpirationMonth: 1 },
+};
 
 const AgentChat = () => {
   const enabled = useBooleanFlagValue('agentEnabled', false);
@@ -16,6 +27,9 @@ const AgentChat = () => {
   const [proposal, setProposal] = useState<PricedProposal | undefined>();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const { emptyCart, addItem, placeOrder } = useCart();
+  const { selectedCurrency } = useCurrency();
+  const { push } = useRouter();
 
   const send = useCallback(
     async (text: string) => {
@@ -38,8 +52,32 @@ const AgentChat = () => {
     [messages, busy]
   );
 
-  // Approve/disapprove wiring is added in Task 6.
-  const onApprove = useCallback(() => undefined, []);
+  const onApprove = useCallback(async () => {
+    if (!proposal || busy) return;
+    setBusy(true);
+    try {
+      const { userId } = SessionGateway.getSession();
+      await emptyCart();
+      for (const line of proposal.lines) {
+        await addItem({ productId: line.productId, quantity: line.quantity });
+      }
+      const order = await placeOrder({
+        userId,
+        email: DEMO_CHECKOUT.email,
+        address: DEMO_CHECKOUT.address,
+        userCurrency: selectedCurrency,
+        creditCard: DEMO_CHECKOUT.creditCard,
+        orderType: 'delivery',
+      } as PlaceOrderArg);
+      setProposal(undefined);
+      setMessages(m => [...m, { role: 'assistant', content: `Order placed! Confirmation #${order.orderId}. Opening your tracker…` }]);
+      push({ pathname: `/cart/checkout/${order.orderId}`, query: { order: JSON.stringify(order) } });
+    } catch {
+      setMessages(m => [...m, { role: 'assistant', content: 'I could not place the order. Please try from the cart.' }]);
+    } finally {
+      setBusy(false);
+    }
+  }, [proposal, busy, emptyCart, addItem, placeOrder, selectedCurrency, push]);
   const onChange = useCallback(() => setProposal(undefined), []);
 
   if (!enabled) return null;
