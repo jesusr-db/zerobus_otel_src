@@ -70,4 +70,74 @@ describe('parseAgentResponse', () => {
     expect(out.reply).toBe('ok');
     expect(out.proposal).toEqual({ items: [{ menuItemId: 7, quantity: 2 }], orderType: 'pickup' });
   });
+
+  // Real deployed-endpoint envelopes from the contract ledger §2.4 (2026-06-18).
+  it('parses the real deployed proposal-turn envelope (Example A) and drops the no-op trace sentinel', () => {
+    const out = parseAgentResponse({
+      output: [
+        {
+          type: 'message',
+          id: '2a4174c4-a860-43b1-a11e-e289840718a1',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: "Perfect! I've got your order ready:" }],
+        },
+      ],
+      custom_outputs: {
+        mlflow_trace_id: 'MLFLOW_NO_OP_SPAN_TRACE_ID',
+        propose_order: {
+          tool: 'propose_order',
+          items: [
+            { menu_item_id: 1, item_name: 'Large Hand-Tossed Pepperoni', quantity: 2, unit_price: 15.99 },
+            { menu_item_id: 53, item_name: '20oz Coca-Cola', quantity: 1, unit_price: 2.29 },
+          ],
+          order_type: 'delivery',
+          subtotal: 34.27,
+          tax_estimate: 3.08,
+          total: 37.35,
+          currency: 'USD',
+          pricing_note: 'indicative — BFF is pricing authority at place_order',
+        },
+      },
+    });
+    expect(out.reply).toBe("Perfect! I've got your order ready:");
+    // indicative prices dropped; only id + quantity carried forward
+    expect(out.proposal).toEqual({
+      items: [
+        { menuItemId: 1, quantity: 2 },
+        { menuItemId: 53, quantity: 1 },
+      ],
+      orderType: 'delivery',
+    });
+    // sentinel trace id must be treated as absent (tracing is a no-op in serving)
+    expect(out.agentTraceId).toBeUndefined();
+  });
+
+  it('parses the real guest text-only envelope (Example B): reply text, no proposal, no trace id', () => {
+    const out = parseAgentResponse({
+      output: [
+        { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Our most popular pizzas are the Pepperoni and the Margherita.' }] },
+      ],
+      custom_outputs: { mlflow_trace_id: 'MLFLOW_NO_OP_SPAN_TRACE_ID' },
+    });
+    expect(out.reply).toContain('most popular');
+    expect(out.proposal).toBeUndefined();
+    expect(out.agentTraceId).toBeUndefined();
+  });
+
+  it('prefers the output_text content block over a preceding non-output_text block', () => {
+    const out = parseAgentResponse({
+      output: [
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [
+            { type: 'reasoning', text: 'internal thinking that must not surface' },
+            { type: 'output_text', text: 'the real answer' },
+          ],
+        },
+      ],
+      custom_outputs: {},
+    });
+    expect(out.reply).toBe('the real answer');
+  });
 });

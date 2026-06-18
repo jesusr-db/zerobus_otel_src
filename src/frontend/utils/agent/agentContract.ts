@@ -63,26 +63,37 @@ export function buildAgentRequest(
   };
 }
 
-// Pull assistant text from a ResponsesAgent response. Prefer `output_text`;
-// fall back to scanning `output[].content[].text`. (Exact envelope is finalized
-// when the model team posts their first deploy example — this stays tolerant.)
+// In-serving MLflow tracing is currently a no-op on the deployed endpoint, so
+// custom_outputs.mlflow_trace_id comes back as this sentinel rather than a real
+// trace id (per the contract ledger, §3.2/§6). Treat it as absent — never stamp
+// it as agent.mlflow.trace_id — until the model team enables experiment tracing.
+const MLFLOW_NOOP_TRACE_ID = 'MLFLOW_NO_OP_SPAN_TRACE_ID';
+
+// Pull assistant text from a ResponsesAgent response. The settled envelope
+// (contract §2.4) is `output[0].content[i].text` where `content[i].type ==
+// "output_text"`; we prefer that and only fall back to any text-bearing field
+// for forward-compat. A top-level `output_text` string is also honored.
 function extractText(r: Record<string, unknown>): string | undefined {
   if (typeof r.output_text === 'string' && r.output_text.length) return r.output_text;
   const output = r.output;
-  if (Array.isArray(output)) {
-    for (const item of output) {
-      const content = (item as Record<string, unknown>)?.content;
-      if (Array.isArray(content)) {
-        for (const c of content) {
-          const text = (c as Record<string, unknown>)?.text;
-          if (typeof text === 'string' && text.length) return text;
+  if (!Array.isArray(output)) return undefined;
+  let fallback: string | undefined;
+  for (const item of output) {
+    const content = (item as Record<string, unknown>)?.content;
+    if (Array.isArray(content)) {
+      for (const c of content) {
+        const cr = c as Record<string, unknown>;
+        const text = cr?.text;
+        if (typeof text === 'string' && text.length) {
+          if (cr.type === 'output_text') return text; // the settled path
+          fallback ??= text;
         }
       }
-      const text = (item as Record<string, unknown>)?.text;
-      if (typeof text === 'string' && text.length) return text;
     }
+    const text = (item as Record<string, unknown>)?.text;
+    if (typeof text === 'string' && text.length) fallback ??= text;
   }
-  return undefined;
+  return fallback;
 }
 
 // Tolerant of extra fields and minor shape drift (mirrors the recommendation
@@ -98,7 +109,9 @@ export function parseAgentResponse(raw: unknown): AgentReply {
   const out: AgentReply = { reply: text };
   const co = (r.custom_outputs ?? {}) as Record<string, unknown>;
 
-  if (typeof co.mlflow_trace_id === 'string') out.agentTraceId = co.mlflow_trace_id;
+  if (typeof co.mlflow_trace_id === 'string' && co.mlflow_trace_id !== MLFLOW_NOOP_TRACE_ID) {
+    out.agentTraceId = co.mlflow_trace_id;
+  }
   if (co.cold_start === true) out.coldStart = true;
 
   const p = co.propose_order as Record<string, unknown> | undefined;
