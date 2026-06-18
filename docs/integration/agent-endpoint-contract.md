@@ -1,0 +1,125 @@
+# Agentic Commerce Chatbot — Integration Contract & Communications Ledger
+
+**Audience:** the team building the **`pizzatel-agent`** (Databricks Agents SDK + MLflow + Model Serving — the "Crustopher pattern").
+**Counterparty:** the PizzaTel storefront / web team (this repo).
+**Purpose:** the seam between the two projects so both can build in parallel — **and** a running ledger so the two teams can talk to each other in one place.
+
+The storefront mounts a chat widget on login. It calls a Databricks Model Serving endpoint that hosts a conversational ordering agent. The agent reasons over the customer's identity, preferences, order history, local/holiday context, and live recommendations (from the **existing `synth_qsr-recommender`** endpoint), proposes a priced cart, and — after the customer explicitly **approves** — the **web BFF places the real order** through the unmodified Checkout → Kafka → order-tracker pipeline.
+
+> Companion docs: [`recommendation-endpoint-contract.md`](./recommendation-endpoint-contract.md) (the proven sibling pattern) and the design brainstorm at [`../../research/agentic-chatbot-otel-dual-tracing_2026-06-18.md`](../../research/agentic-chatbot-otel-dual-tracing_2026-06-18.md).
+
+**Status legend:** 🟥 TO BE PROVIDED · 🟨 PROPOSED / CONFIRM · 🟩 AGREED
+
+---
+
+## 0. Communications Ledger
+
+> Both teams append here. Newest at top. Format: `YYYY-MM-DD — [team] — note`. Move resolved items into the contract body and mark them 🟩.
+
+| Date | Team | Note |
+|------|------|------|
+| 2026-06-18 | web | Initial contract drafted from the 2026-06-18 brainstorm. All 🟥 items below are open questions for the model team. Top priority: **§2.1 agent flavor + payload format** (blocks the entire BFF request builder) and **§3 the `place_order` tool-call schema**. |
+
+### Open questions for the model team (quick list)
+1. 🟥 `ResponsesAgent` or `ChatAgent`? What exact invocation payload? (§2.1)
+2. 🟥 Stateless (we resend full history) or server-held `conversation_id`? (§2.2)
+3. 🟥 For each context signal (preferences, order history, local/holiday), does the **agent fetch it via its own Databricks tools**, or does the **web BFF pre-fetch and pass it in**? (§2.3)
+4. 🟥 Exact `propose_order` tool-call JSON the agent emits. (§3.1)
+5. 🟥 Will the agent honor `app_trace_context` and return its MLflow `trace_id`? (§3.2)
+6. 🟥 Latency SLA + cold-start behavior on an interactive surface. (§5)
+7. 🟥 Can OTLP export run **alongside** the MLflow experiment trace store on your serving runtime? (governs the tracing stretch goal — §6)
+
+---
+
+## 1. Endpoint & auth — 🟥 TO BE PROVIDED
+- **Invocation URL:** `https://<workspace-host>/serving-endpoints/<NAME>/invocations` (endpoint name + workspace).
+- **Auth (initial): PAT** — a token/principal with `CAN_QUERY` on the endpoint. Web stores it as `AGENT_API_TOKEN` (same env pattern as the recommender's `DATABRICKS_*`).
+- **Auth (roadmap):** OAuth M2M service principal — preferred, aligns with ADR 0002.
+- **MLflow experiment** name/path the agent logs runs + traces to (so web can reference it in the demo and confirm trace correlation).
+
+## 2. Conversation request/response schema
+
+### 2.1 Agent flavor & payload format — 🟥 TO BE PROVIDED **(highest priority — blocks the BFF request builder)**
+- Is the agent a **`ResponsesAgent`** or a **`ChatAgent`**? This decides whether the BFF sends `{ "messages": [...] }` (chat) or the Responses input shape, and whether the MLflow signature wants `dataframe_records` / `dataframe_split` / agent-native.
+- Provide one **real example request and response** from your deployed endpoint — that resolves 90% of the ambiguity faster than prose.
+
+### 2.2 Conversation state — 🟥 CONFIRM
+- **Stateless** (web resends the full message history every turn — simplest, recommended) **or** server-held session via a returned `conversation_id`/`session_id` we echo back? The recommender was one-shot; this is multi-turn, so we need this pinned.
+
+### 2.3 Context & tool ownership — 🟨 PROPOSED / CONFIRM
+The web side already threads synth-aligned identity (these IDs are **already settled** with the recommender — same join keys):
+
+| field | type | meaning |
+|-------|------|---------|
+| `profile_id` | bigint *(or `"guest"` sentinel)* | active customer profile |
+| `member_id` | bigint, nullable | loyalty member, if any |
+| `store_id` | bigint | active store (`synth_ref.unit.unit_id`) |
+
+For each of the following, **confirm who owns the lookup** — the agent's own Databricks-side tools, or the web BFF pre-fetching and passing it in the first turn:
+
+| signal | source | owner? 🟥 |
+|--------|--------|-----------|
+| menu / product catalog | `synth_ref.menu_item` | agent tool (`search_menu`) — assumed |
+| recommendations | **existing `synth_qsr-recommender`** | agent tool (`get_recommendations`) calling the existing contract — assumed |
+| preferences | `synth_silver.*` | **?** |
+| order history | `synth_silver.guest_order` / `order_item` | **?** |
+| local / holiday / occasion context | static holiday table or prompt context | **?** |
+
+> Web's preference: agent owns the data-side tools (keeps identity keys server-side, mirrors the recommender). Confirm.
+
+### 2.4 Per-turn response shape — 🟥 TO BE PROVIDED
+What the BFF receives each turn:
+- assistant **display text** (rendered in the chat bubble), and
+- an optional **structured tool-call intent** (esp. `propose_order` — see §3.1), so the web can render the **approve/disapprove confirm card** instead of free-text-parsing a cart.
+
+## 3. The two items unique to this feature
+
+### 3.1 `propose_order` / `place_order` tool schema — 🟥 TO BE PROVIDED **(load-bearing)**
+The agent **declares** an order tool but the **web BFF executes it** — the agent must never place the order itself (keeps the order byte-identical to a UI order and keeps secrets/pipeline web-side).
+- Provide the **exact JSON** the agent emits when it wants to place an order. Proposed (confirm):
+  ```json
+  {
+    "tool": "propose_order",
+    "items": [ { "menu_item_id": 1, "quantity": 2 }, { "menu_item_id": 14, "quantity": 1 } ],
+    "order_type": "delivery"
+  }
+  ```
+- **Item IDs must be `menu_item_id` (bigint)** — already aligned with the storefront catalog (`product_id == str(menu_item_id)`); web `str()`s them to resolve against the live 68-item catalog and prices them. Confirm ints in/out.
+- The agent returns a **proposal**, not a placed order. Web renders the priced confirm card; only an explicit user **approve** triggers the BFF `place_order` against `Checkout.gateway`.
+
+### 3.2 Trace-stitch fields (OTel dual-level) — 🟨 PROPOSED / CONFIRM
+The storefront already emits an end-to-end OTel trace (browser → BFF → checkout → Kafka → order-tracker) into `jmrdemo.zerobus.otel_spans`. To **correlate** the agent's MLflow trace with the app trace (Option 2 in the brainstorm — keep two backends, link on a shared ID):
+- Web sends **`app_trace_context`** (a W3C `traceparent` string) **in the request payload** — *not* an HTTP header, because Model Serving may strip headers.
+- Agent: record it as an MLflow trace tag **`app.trace_id`** (and/or start the trace as a child of that context).
+- Agent: **return your MLflow `trace_id`** in the response so the web BFF can stamp `agent.mlflow.trace_id` on its OTel span.
+- Result: agent traces stay in the **MLflow experiment** (MLflow eval/scorers intact), app traces stay in **zerobus**, and the two are JOIN-able on trace ID. No exporter collision.
+
+## 4. What the website PROVIDES (so you can build to it)
+- **Calls** `POST /serving-endpoints/<NAME>/invocations` per chat turn with the agreed payload, including the synth-aligned `profile_id`/`member_id`/`store_id` and `app_trace_context`.
+- **Executes `place_order`** in the BFF via the unmodified `Checkout.gateway.placeOrder(order, { storeId, orderType })` with `pizzatel-store-id` / `pizzatel-order-type` metadata — the same call the storefront checkout makes today. Returns the real `order_id` / `shipping_tracking_id` / cost and hands off to the existing order tracker (`/api/order-status`).
+- **Renders** the approve/disapprove confirm card from the structured proposal; the agent never auto-orders.
+- **Type handling:** sends item ids as ints; `str()`s returned `menu_item_id`s for the catalog/UI.
+- **Telemetry:** wraps the agent call in an OpenTelemetry **client span** (endpoint, latency, turn, fallback?, `agent.mlflow.trace_id`) that continues the active session trace.
+- **Graceful degradation:** a flagd flag (`agentEnabled`) gates the widget; on timeout/error/flag-off the chat shows a degraded state and the storefront runs normally without the endpoint. Optional `agentSpeechEnabled` flag gates browser speech-to-text input (no server-side ASR required).
+
+## 5. Non-functional — 🟥 TO BE PROVIDED
+- **Latency SLA (p50/p99)** — interactive chat surface, so we set a sane client timeout (recommender used 20s) and decide whether a **pre-warm ping on chat-open** is worth it.
+- **Cold-start behavior** — scale-to-zero is far more visible on a live chat than a background rec call.
+- **Guest / no-profile behavior** — what the agent does for the `profile_id = "guest"` sentinel, so our degraded path matches.
+
+## 6. Verification item (governs the tracing stretch goal) — 🟥 TO BE PROVIDED
+- On the **deployed MLflow version**, can OTLP export (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`) run **alongside** the experiment trace store, or does enabling OTLP export **disable** the in-experiment trace UI/eval? This decides whether "Option 3 / single-pane traces in zerobus" is ever viable without sacrificing the MLflow-experiment requirement. The model team owns this verification (it's a serving-runtime fact).
+
+---
+
+## 7. Checklist for the model team
+- [ ] Endpoint name + workspace URL + MLflow experiment path
+- [ ] PAT principal with `CAN_QUERY` (+ OAuth M2M later)
+- [ ] **Agent flavor (`ResponsesAgent`/`ChatAgent`) + one real example request/response** (§2.1)
+- [ ] Conversation state model: stateless vs server-held session (§2.2)
+- [ ] Confirm context/tool ownership per signal (§2.3)
+- [ ] Per-turn response shape incl. structured tool-call intent (§2.4)
+- [ ] `propose_order` tool-call JSON + confirm `menu_item_id` ints in/out (§3.1)
+- [ ] Honor `app_trace_context` + return MLflow `trace_id` (§3.2)
+- [ ] Latency SLA + cold-start + guest behavior (§5)
+- [ ] OTLP-alongside-experiment verification (§6)
