@@ -14,6 +14,11 @@ export function useSpeechInput(onText: (t: string) => void): {
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recRef = useRef<any>(null);
+  const onTextRef = useRef(onText);
+
+  useEffect(() => {
+    onTextRef.current = onText;
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -27,7 +32,7 @@ export function useSpeechInput(onText: (t: string) => void): {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     rec.onresult = (e: any) => {
       const transcript = e.results?.[0]?.[0]?.transcript ?? '';
-      if (transcript) onText(transcript);
+      if (transcript) onTextRef.current(transcript);
     };
     rec.onend = () => setListening(false);
     recRef.current = rec;
@@ -39,7 +44,7 @@ export function useSpeechInput(onText: (t: string) => void): {
         /* noop */
       }
     };
-  }, [onText]);
+  }, []);
 
   const toggle = useCallback(() => {
     const rec = recRef.current;
