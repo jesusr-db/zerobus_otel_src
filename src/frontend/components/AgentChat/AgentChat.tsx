@@ -3,6 +3,7 @@
 
 import { useCallback, useState } from 'react';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
+import { useSpeechInput } from './useSpeechInput';
 import { useRouter } from 'next/router';
 import ApiGateway from '../../gateways/Api.gateway';
 import { useCart } from '../../providers/Cart.provider';
@@ -22,11 +23,13 @@ const DEMO_CHECKOUT = {
 
 const AgentChat = () => {
   const enabled = useBooleanFlagValue('agentEnabled', false);
+  const speechEnabled = useBooleanFlagValue('agentSpeechEnabled', false);
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [proposal, setProposal] = useState<PricedProposal | undefined>();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const { supported: speechSupported, listening, toggle: toggleSpeech } = useSpeechInput(setInput);
   const { emptyCart, addItem, placeOrder } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
@@ -144,6 +147,11 @@ const AgentChat = () => {
           placeholder={busy ? 'Thinking…' : 'Type your order…'}
           disabled={busy}
         />
+        {speechEnabled && speechSupported && (
+          <S.Button type="button" $variant="ghost" onClick={toggleSpeech} aria-label="Speak your order">
+            {listening ? '⏺' : '🎤'}
+          </S.Button>
+        )}
         <S.Button type="submit" disabled={busy}>
           Send
         </S.Button>
