@@ -7,6 +7,16 @@
 
 ---
 
+> ### 🚨 CRITICAL — READ BEFORE PLANNING
+> A **team integration contract + communications ledger** now exists at
+> **[`docs/integration/agent-endpoint-contract.md`](../docs/integration/agent-endpoint-contract.md)**.
+> It is the **source of truth** for the web ⇄ data-science seam. The next agent MUST:
+> 1. **Read it first** and treat its 🟥 *TO BE PROVIDED BY MODEL TEAM* items as **blocking dependencies** — the implementation plan cannot finalize the BFF request builder until the model team answers **§2.1 (agent flavor + payload)** and **§3.1 (`place_order` tool schema)**.
+> 2. **Do not duplicate or re-derive** the contract in the plan — reference it and depend on it. New decisions go *into the ledger* (§0), not scattered across docs.
+> 3. Keep the load-bearing rule intact: **`place_order` is declared on the agent but executed in the web BFF** — never let the plan move order placement onto the agent.
+
+---
+
 ## Framing
 
 The opportunity is to add an **agentic ordering surface** to PizzaTel: a chat widget that pops up on login, knows the selected customer (profile/loyalty/store/history + local context), holds a natural-language conversation about what to order (including occasion/holiday framing), pulls personalized recs from the **existing** `synth_qsr-recommender` endpoint, assembles an order list + price, gets explicit user **approve/disapprove**, and on approval places a **real, trackable order** through the *exact same* Checkout → Kafka `orders` → order-tracker → Valkey pipeline the storefront already uses — returning a real `order_id`, `shipping_tracking_id`, cost, and the existing order-tracker confirmation link.
