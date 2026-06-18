@@ -60,7 +60,17 @@ const AgentChat = () => {
     setBusy(true);
     try {
       const { userId } = SessionGateway.getSession();
-      await emptyCart();
+      // Clear the cart so the order is exactly the approved lines. The DELETE
+      // empties the cart server-side (204); the client promise can still reject
+      // because the OTel fetch instrumentation chokes on the empty 204 body
+      // ("body stream already read") — that's post-response and harmless, so we
+      // swallow it rather than abort the order (matches CartDetail's fire-and-
+      // forget use of emptyCart).
+      try {
+        await emptyCart();
+      } catch {
+        /* cart already emptied server-side; ignore client-side 204 read error */
+      }
       for (const line of proposal.lines) {
         await addItem({ productId: line.productId, quantity: line.quantity });
       }
@@ -127,8 +137,10 @@ const AgentChat = () => {
               </strong>
             </S.CardRow>
             <S.Actions>
-              <S.Button onClick={onApprove}>Place order</S.Button>
-              <S.Button $variant="ghost" onClick={onChange}>
+              <S.Button onClick={onApprove} disabled={busy}>
+                Place order
+              </S.Button>
+              <S.Button $variant="ghost" onClick={onChange} disabled={busy}>
                 Change something
               </S.Button>
             </S.Actions>
