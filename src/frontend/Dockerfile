@@ -19,6 +19,7 @@ COPY ./src/frontend/services/ services/
 COPY ./src/frontend/styles/ styles/
 COPY ./src/frontend/types/ types/
 
+COPY ./src/frontend/utils/agent/ utils/agent/
 COPY ./src/frontend/utils/enums/ utils/enums/
 COPY ./src/frontend/utils/telemetry/ utils/telemetry/
 COPY ./src/frontend/utils/imageLoader.js utils/imageLoader.js
