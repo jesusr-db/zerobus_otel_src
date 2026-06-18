@@ -20,8 +20,11 @@ export function mockAgentRespond(messages: AgentChatMessage[], ctx: AgentSession
   }
 
   return {
+    // The priced confirm card (built from the live catalog) is the source of truth
+    // for item names + prices, so the bubble stays generic — naming specific items
+    // here would drift from the catalog whenever the menu changes.
     reply:
-      "Great — here's a suggested order: a Large Hand-Tossed Pepperoni and a side of Garlic Knots. Review it below and approve to place the order.",
+      "Great — I've put together a suggested order based on a classic pepperoni pick. Review the items and prices below, then approve to place the order.",
     proposal: { items: [{ menuItemId: 1, quantity: 1 }, { menuItemId: 14, quantity: 1 }], orderType: 'delivery' },
     agentTraceId: `mock-${messages.length}`,
   };
