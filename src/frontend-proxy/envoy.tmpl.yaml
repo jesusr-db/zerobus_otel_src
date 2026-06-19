@@ -61,6 +61,12 @@ static_resources:
                             prefix_rewrite: "/"
                             upgrade_configs:
                               - upgrade_type: websocket
+                        # Agent chat turns can take up to ~30s on a scale-to-zero
+                        # cold start with tool-chaining; raise the route timeout above
+                        # Envoy's 15s default (and the BFF's 30s client timeout) so the
+                        # graceful in-app fallback applies instead of a proxy 504.
+                        - match: { prefix: "/api/agent-chat" }
+                          route: { cluster: frontend, timeout: 35s }
                         - match: { prefix: "/" } # Default/catch-all route - keep last since prefix:"/" matches everything
                           route: { cluster: frontend }
                 http_filters:

@@ -11,6 +11,7 @@ import Theme from '../styles/Theme';
 import FrontendTracer from '../utils/telemetry/FrontendTracer';
 import SessionGateway from '../gateways/Session.gateway';
 import { OpenFeatureProvider, OpenFeature } from '@openfeature/react-sdk';
+import AgentChat from '../components/AgentChat/AgentChat';
 import { FlagdWebProvider } from '@openfeature/flagd-web-provider';
 
 declare global {
@@ -66,6 +67,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           <CurrencyProvider>
             <CartProvider>
               <Component {...pageProps} />
+              <AgentChat />
             </CartProvider>
           </CurrencyProvider>
         </QueryClientProvider>

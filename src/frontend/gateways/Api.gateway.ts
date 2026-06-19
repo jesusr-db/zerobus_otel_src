@@ -90,6 +90,16 @@ const Apis = () => ({
       },
     });
   },
+  sendAgentMessage(messages: import('../utils/agent/agentContract').AgentChatMessage[]) {
+    // defaults so a stale session never emits the string "undefined"
+    const { storeId = '', profileId = 'guest', memberId = '', currencyCode = 'USD' } = SessionGateway.getSession();
+    return request<import('../services/Agent.service').AgentTurnResult>({
+      url: `${basePath}/agent-chat`,
+      method: 'POST',
+      queryParams: { currencyCode },
+      body: { messages, context: { profileId, storeId, memberId } },
+    });
+  },
   listAds(contextKeys: string[]) {
     return request<Ad[]>({
       url: `${basePath}/data`,
