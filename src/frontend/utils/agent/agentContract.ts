@@ -47,6 +47,11 @@ export interface AgentRequestPayload {
 const FALLBACK_REPLY =
   "Sorry — I'm having trouble reaching the ordering assistant right now. You can keep shopping and try again in a moment.";
 
+// Used when the agent returns a structured proposal but no assistant chat text
+// (some proposal turns come back with an empty message body). We still render
+// the confirm card rather than degrading to the fallback.
+const PROPOSAL_ONLY_REPLY = "Here's a suggested order — review it below and approve to place it.";
+
 export function buildAgentRequest(
   messages: AgentChatMessage[],
   ctx: AgentSessionContext,
@@ -103,25 +108,31 @@ function extractText(r: Record<string, unknown>): string | undefined {
 export function parseAgentResponse(raw: unknown): AgentReply {
   if (!raw || typeof raw !== 'object') return { reply: FALLBACK_REPLY, fallback: true };
   const r = raw as Record<string, unknown>;
-  const text = extractText(r);
-  if (!text) return { reply: FALLBACK_REPLY, fallback: true };
-
-  const out: AgentReply = { reply: text };
   const co = (r.custom_outputs ?? {}) as Record<string, unknown>;
 
-  if (typeof co.mlflow_trace_id === 'string' && co.mlflow_trace_id !== MLFLOW_NOOP_TRACE_ID) {
-    out.agentTraceId = co.mlflow_trace_id;
-  }
-  if (co.cold_start === true) out.coldStart = true;
-
+  // Parse the structured proposal FIRST, so a proposal turn that comes back with
+  // an empty assistant text still renders the confirm card (don't drop it).
+  let proposal: AgentProposal | undefined;
   const p = co.propose_order as Record<string, unknown> | undefined;
   if (p && Array.isArray(p.items)) {
     const items: ProposedItem[] = p.items
       .map((it: unknown) => it as Record<string, unknown> | null)
       .filter((it): it is Record<string, unknown> => it != null && Number.isInteger(it.menu_item_id) && typeof it.quantity === 'number')
       .map(it => ({ menuItemId: it.menu_item_id as number, quantity: it.quantity as number }));
-    if (items.length) out.proposal = { items, orderType: typeof p.order_type === 'string' ? p.order_type : 'delivery' };
+    if (items.length) proposal = { items, orderType: typeof p.order_type === 'string' ? p.order_type : 'delivery' };
   }
+
+  const text = extractText(r);
+  // Degrade to the fallback only when there is NEITHER assistant text NOR a
+  // usable proposal — a proposal alone is enough to keep going.
+  if (!text && !proposal) return { reply: FALLBACK_REPLY, fallback: true };
+
+  const out: AgentReply = { reply: text ?? PROPOSAL_ONLY_REPLY };
+  if (proposal) out.proposal = proposal;
+  if (typeof co.mlflow_trace_id === 'string' && co.mlflow_trace_id !== MLFLOW_NOOP_TRACE_ID) {
+    out.agentTraceId = co.mlflow_trace_id;
+  }
+  if (co.cold_start === true) out.coldStart = true;
 
   return out;
 }

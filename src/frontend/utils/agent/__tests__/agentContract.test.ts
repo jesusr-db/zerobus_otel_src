@@ -124,6 +124,19 @@ describe('parseAgentResponse', () => {
     expect(out.agentTraceId).toBeUndefined();
   });
 
+  it('renders the proposal even when the assistant text is empty (does not drop to fallback)', () => {
+    const out = parseAgentResponse({
+      output: [{ type: 'message', role: 'assistant', content: [] }], // no output_text
+      custom_outputs: {
+        propose_order: { items: [{ menu_item_id: 1, quantity: 1 }], order_type: 'delivery' },
+        mlflow_trace_id: 'MLFLOW_NO_OP_SPAN_TRACE_ID',
+      },
+    });
+    expect(out.fallback).toBeUndefined();
+    expect(out.reply.length).toBeGreaterThan(0); // default proposal reply
+    expect(out.proposal).toEqual({ items: [{ menuItemId: 1, quantity: 1 }], orderType: 'delivery' });
+  });
+
   it('prefers the output_text content block over a preceding non-output_text block', () => {
     const out = parseAgentResponse({
       output: [
