@@ -11,25 +11,30 @@
 - **Next actions**:
   1. **Push `main` to `origin`** (closes the long-standing "main unpushed" issue). The chatbot feature is merged.
   2. **Order→OTel→app pipeline: VERIFIED & FIXED 2026-06-19** (see §2a). Root cause of stale app data was the `pizza_rt_refresh` schedule being **PAUSED** — now UNPAUSED at every-5-min. ⚠️ **Durable follow-up**: persist the unpause in the `otel_pizza` bundle's job YAML, or a `bundle deploy` reverts it to PAUSED.
-  3. **NEW — troubleshoot logs not landing** (see §2b): the OTel collector `otlphttp/logs` exporter is 403'ing (~1550 drops/30m) while `otlphttp/traces` exports fine. Orders are unaffected (they ride traces), but **OTel *logs* are not reaching Databricks**. Investigate the logs endpoint/permission separately.
+  3. **OTel logs/exports 403 — ROOT-CAUSED & FIXED 2026-06-20** (see §2c). It was never logs-specific: `docker-compose.yml` passed the collector creds as **bare passthrough** (`- DATABRICKS_API_TOKEN`) which reads the **shell, not `.env`**, so the collector drifted to a stale/empty token → 403 on all signals. Fixed to `- VAR=${VAR}` interpolation; validated clean-shell recreate → 0 403s, traces+demo-logs+metrics all landing. Branch `fix/otel-logs-403`.
   4. pizza-rt-app demo segment can only be captured in **your own Chrome** (Okta wall) — `library/pizzatel-agent-order-journey-local.gif` is the storefront half.
 - **Landmines**: collector `DATABRICKS_API_TOKEN` expires (~7-day PAT, ~**2026-06-25**) → exports 403 → orders vanish from the app. · Don't commit `.env` (holds the token; gitignored). · Refresh schedule lives in the `otel_pizza` bundle — redeploy may re-pause it.
 
 ## §2a — Order→OTel→app pipeline verification (2026-06-19)
 
 Placed a real test order via curl (`POST /api/cart` then `POST /api/checkout` on `localhost:8080`) and traced it through every boundary:
-- **B1 collector→Databricks (traces)**: healthy — 0 trace-export errors (only *logs* 403, see §2b).
+- **B1 collector→Databricks (traces)**: healthy at the time — 0 trace-export errors (the broader 403 issue is root-caused in §2c).
 - **B2 `jmrdemo.zerobus.otel_spans`**: order's 4 spans landed in ~30s (`CheckoutService/PlaceOrder`, `order-tracker received order`, `stage: Prep`, `send_order_confirmation`). Fresh to the minute.
 - **B3 assembly**: **no `zerobus_sdp` pipeline exists** — `pizza_rt_refresh` (job `417359879058803`, notebook `src/rt_refresh`, bundle `otel_pizza/dev`) reads `otel_spans` directly (params `raw_schema=zerobus`,`rt_schema=pizza_rt`,`lakebase_instance=synth-qsr-online-store`).
 - **B4 `pizza_rt.orders`**: was **stale to 2026-06-17** because the refresh **schedule was PAUSED**. Triggered a run → order appeared, table 395→826 rows. Set schedule to `0 */5 * * * ?` UNPAUSED.
 - **B5 app source**: the app reads the **Lakebase mirror** (`synth-qsr-online-store`/`pizza_rt`.`orders`), not UC — confirmed the test order present there too. (UI itself Okta-walled.)
 - Query path: `databricks api post /api/2.0/sql/statements` warehouse `d56091a1171f30ff`; Lakebase via `databricks database generate-database-credential` + `psql … sslmode=require`. Memory [[pizza-rt-data-chain]] corrected with all of the above.
 
-## §2b — OPEN: OTel logs not landing (collector `otlphttp/logs` 403)
+## §2c — RESOLVED: OTel collector 403 (root cause = compose env passthrough, not token expiry)
 
-- **Symptom**: `docker logs otel-collector` shows continuous `Exporting failed. Dropping data.` for `"otelcol.component.id": "otlphttp/logs"`, `"otelcol.signal": "logs"`, `HTTP 403` against `…/api/2.0/otel/v1/logs`. ~1550 drops / 30 min. `otlphttp/traces` has **zero** errors with the same token — so it's logs-endpoint-specific, not a dead token.
-- **Impact**: order pipeline unaffected (traces). But any log-based observability into Databricks is dropping.
-- **Where to look**: collector config `src/otel-collector/otelcol-config-extras.yml` (logs exporter auth/headers vs traces), the Databricks-side OTLP **logs** ingest permission/enablement for the workspace, and whether the logs endpoint needs a different schema/UC target than traces. Confirm the principal behind the PAT has logs-ingest rights.
+The §2a "logs-only 403" framing was a red herring caught mid-transition. By the time I dug in, **all three signals (traces/logs/metrics) were 403** `PermissionDenied`. Investigation:
+- **`.env` token is VALID** — SCIM `/Me` → 200 as `jesus.rodriguez` (ALL PRIVILEGES on `jmrdemo`). So NOT expiry.
+- **Direct OTLP ingest with the `.env` token → 200** (empty payload AND a real hand-rolled span, all 3 signals). Endpoint/table/grants all fine. (Empty payload short-circuits to 200 — must send ≥1 real record to test the permission layer.)
+- **`otel_logs`/`otel_metrics` tables exist, same owner/grants/`otel.schemaVersion=v1` as `otel_spans`** — not a table problem. Both had real data historically (logs 510K rows, metrics 9.7M) → regression, not never-configured.
+- **Root cause**: `docker-compose.yml`'s collector block passed creds as **bare passthrough** (`- DATABRICKS_API_TOKEN`), which docker-compose resolves from the **shell env at `up` time, NOT `.env`**. The running collector had drifted to a stale/empty token while `.env` stayed valid → 403 on everything. Staggered failure (logs first, traces last) is just volume ordering, masquerading as "logs-only".
+- **Controlled proof**: recreate with the var UNSET in shell → 403 (empty token); recreate with `.env` exported → all signals land. Token presence was the only variable.
+- **Durable fix (this branch `fix/otel-logs-403`)**: changed to `- DATABRICKS_API_TOKEN=${DATABRICKS_API_TOKEN}` (+ endpoint & 3 table vars). `${VAR}` interpolation reads `.env`; bare passthrough doesn't. Validated: `env -u DATABRICKS_API_TOKEN … docker compose config` resolves token from `.env`; **clean-shell `--force-recreate` → 0 403s, spans=551 + demo-logs=233 (6 services) + metrics landing in 90s**.
+- Durable: `docker exec otel-collector printenv` is unreliable in this sandbox (showed "1 env var") — don't trust it; use `docker compose config` / data-landing checks. Memory [[otel-collector-token-compose-passthrough]] captures the full method. Long-term token story still OAuth M2M (ADR 0002).
 
 ## §2 — This session   (evidence cited)
 
