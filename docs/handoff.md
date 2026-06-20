@@ -7,12 +7,29 @@
 
 ## §1 — Launchpad (act on this first)
 
-- **State**: clean working tree · branch **not pushed** (29 local commits since `41f7523`)
+- **State**: `feat/agentic-commerce-chatbot` **merged to `main`** (no-ff). On branch `fix/verify-order-otel-pipeline`. `main` is **31 commits ahead of `origin/main`** — still **not pushed**.
 - **Next actions**:
-  1. Decide branch disposition: open a PR / merge `feat/agentic-commerce-chatbot` → `main` (feature complete, reviewed, real-agent tested). It also carries the Plan-4b verification context below.
-  2. To surface a placed order in the **pizza-rt-app**: run the `pizza_rt_refresh` job (jmrdemo, job `417359879058803`) after confirming the order's spans are in `jmrdemo.zerobus.otel_spans` — see [[pizza-rt-data-chain]]. (Was NOT auto-running; `pizza_rt.orders` was stale to 2026-06-16.)
-  3. pizza-rt-app demo segment can only be captured in **your own Chrome** (Okta wall) — `library/pizzatel-agent-order-journey-local.gif` is the storefront half.
-- **Landmines**: collector `DATABRICKS_API_TOKEN` expires (~7-day PAT just set, ~2026-06-25) → exports 403 → orders vanish from the app. · Don't commit `.env` (holds the token; gitignored).
+  1. **Push `main` to `origin`** (closes the long-standing "main unpushed" issue). The chatbot feature is merged.
+  2. **Order→OTel→app pipeline: VERIFIED & FIXED 2026-06-19** (see §2a). Root cause of stale app data was the `pizza_rt_refresh` schedule being **PAUSED** — now UNPAUSED at every-5-min. ⚠️ **Durable follow-up**: persist the unpause in the `otel_pizza` bundle's job YAML, or a `bundle deploy` reverts it to PAUSED.
+  3. **NEW — troubleshoot logs not landing** (see §2b): the OTel collector `otlphttp/logs` exporter is 403'ing (~1550 drops/30m) while `otlphttp/traces` exports fine. Orders are unaffected (they ride traces), but **OTel *logs* are not reaching Databricks**. Investigate the logs endpoint/permission separately.
+  4. pizza-rt-app demo segment can only be captured in **your own Chrome** (Okta wall) — `library/pizzatel-agent-order-journey-local.gif` is the storefront half.
+- **Landmines**: collector `DATABRICKS_API_TOKEN` expires (~7-day PAT, ~**2026-06-25**) → exports 403 → orders vanish from the app. · Don't commit `.env` (holds the token; gitignored). · Refresh schedule lives in the `otel_pizza` bundle — redeploy may re-pause it.
+
+## §2a — Order→OTel→app pipeline verification (2026-06-19)
+
+Placed a real test order via curl (`POST /api/cart` then `POST /api/checkout` on `localhost:8080`) and traced it through every boundary:
+- **B1 collector→Databricks (traces)**: healthy — 0 trace-export errors (only *logs* 403, see §2b).
+- **B2 `jmrdemo.zerobus.otel_spans`**: order's 4 spans landed in ~30s (`CheckoutService/PlaceOrder`, `order-tracker received order`, `stage: Prep`, `send_order_confirmation`). Fresh to the minute.
+- **B3 assembly**: **no `zerobus_sdp` pipeline exists** — `pizza_rt_refresh` (job `417359879058803`, notebook `src/rt_refresh`, bundle `otel_pizza/dev`) reads `otel_spans` directly (params `raw_schema=zerobus`,`rt_schema=pizza_rt`,`lakebase_instance=synth-qsr-online-store`).
+- **B4 `pizza_rt.orders`**: was **stale to 2026-06-17** because the refresh **schedule was PAUSED**. Triggered a run → order appeared, table 395→826 rows. Set schedule to `0 */5 * * * ?` UNPAUSED.
+- **B5 app source**: the app reads the **Lakebase mirror** (`synth-qsr-online-store`/`pizza_rt`.`orders`), not UC — confirmed the test order present there too. (UI itself Okta-walled.)
+- Query path: `databricks api post /api/2.0/sql/statements` warehouse `d56091a1171f30ff`; Lakebase via `databricks database generate-database-credential` + `psql … sslmode=require`. Memory [[pizza-rt-data-chain]] corrected with all of the above.
+
+## §2b — OPEN: OTel logs not landing (collector `otlphttp/logs` 403)
+
+- **Symptom**: `docker logs otel-collector` shows continuous `Exporting failed. Dropping data.` for `"otelcol.component.id": "otlphttp/logs"`, `"otelcol.signal": "logs"`, `HTTP 403` against `…/api/2.0/otel/v1/logs`. ~1550 drops / 30 min. `otlphttp/traces` has **zero** errors with the same token — so it's logs-endpoint-specific, not a dead token.
+- **Impact**: order pipeline unaffected (traces). But any log-based observability into Databricks is dropping.
+- **Where to look**: collector config `src/otel-collector/otelcol-config-extras.yml` (logs exporter auth/headers vs traces), the Databricks-side OTLP **logs** ingest permission/enablement for the workspace, and whether the logs endpoint needs a different schema/UC target than traces. Confirm the principal behind the PAT has logs-ingest rights.
 
 ## §2 — This session   (evidence cited)
 
