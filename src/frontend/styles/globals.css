@@ -17,15 +17,30 @@ html, body {
 }
 
 body {
-  background: white;
+  background: #FFFDFB;
   margin: 0px;
-  font-family: 'Open Sans', sans-serif;
+  font-family: 'Instrument Sans', 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #1C1917;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-body * {
+*, *::before, *::after {
   box-sizing: border-box;
-  color: #29293E;
-  font-weight: 600;
+}
+
+body {
+  font-weight: 400;
+  line-height: 1.55;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Bricolage Grotesque', 'Instrument Sans', sans-serif;
+  color: #1C1917;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  font-weight: 800;
 }
 
 #__next {
@@ -38,7 +53,20 @@ main {
   flex: 1 0 auto;
 }
 
+a {
+  color: inherit;
+}
+
 select {
   -webkit-appearance: none;
   -webkit-border-radius: 0px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

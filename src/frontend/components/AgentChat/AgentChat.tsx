@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
 import { useSpeechInput } from './useSpeechInput';
 import { useRouter } from 'next/router';
@@ -33,6 +33,19 @@ const AgentChat = () => {
   const { emptyCart, addItem, placeOrder } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Allow other parts of the app (e.g. the hero CTA) to open the assistant.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('pizzatel:open-assistant', onOpen);
+    return () => window.removeEventListener('pizzatel:open-assistant', onOpen);
+  }, []);
+
+  // Keep the latest message in view as the conversation grows.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, proposal, busy]);
 
   const send = useCallback(
     async (text: string) => {
@@ -98,7 +111,8 @@ const AgentChat = () => {
   if (!open) {
     return (
       <S.Launcher aria-label="Open ordering assistant" onClick={() => setOpen(true)}>
-        🍕
+        <S.LauncherIcon aria-hidden>🍕</S.LauncherIcon>
+        Order with AI
       </S.Launcher>
     );
   }
@@ -106,20 +120,33 @@ const AgentChat = () => {
   return (
     <S.Panel role="dialog" aria-label="Ordering assistant">
       <S.Header>
-        PizzaTel Assistant
-        <S.Button $variant="ghost" onClick={() => setOpen(false)} aria-label="Close">
+        <S.HeaderTitle>
+          <S.StatusDot aria-hidden />
+          PizzaTel Assistant
+        </S.HeaderTitle>
+        <S.CloseButton onClick={() => setOpen(false)} aria-label="Close assistant">
           ✕
-        </S.Button>
+        </S.CloseButton>
       </S.Header>
       <S.Messages>
-        {messages.length === 0 && <S.Bubble $role="assistant">Hi! What would you like to order today?</S.Bubble>}
+        {messages.length === 0 && (
+          <S.Bubble $role="assistant">Hi there! Craving something? Tell me what you would like and I will build your order.</S.Bubble>
+        )}
         {messages.map((m, i) => (
           <S.Bubble key={i} $role={m.role}>
             {m.content}
           </S.Bubble>
         ))}
+        {busy && (
+          <S.Typing aria-label="Assistant is typing">
+            <span />
+            <span />
+            <span />
+          </S.Typing>
+        )}
         {proposal && (
           <S.Card>
+            <S.CardTitle>Your order</S.CardTitle>
             {proposal.lines.map(l => (
               <S.CardRow key={l.productId}>
                 <span>
@@ -146,6 +173,7 @@ const AgentChat = () => {
             </S.Actions>
           </S.Card>
         )}
+        <div ref={messagesEndRef} />
       </S.Messages>
       <S.InputRow
         onSubmit={e => {

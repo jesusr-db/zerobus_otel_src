@@ -31,8 +31,9 @@ const Home: NextPage = () => {
             <S.Content>
               <S.HotProducts>
                 <S.HotProductsTitle data-cy={CypressFields.HotProducts} id="hot-products">
-                  Hot Products
+                  Hot right now
                 </S.HotProductsTitle>
+                <S.HotProductsIntro>Fresh out of the oven and ready to order.</S.HotProductsIntro>
                 <ProductList productList={productList} />
               </S.HotProducts>
             </S.Content>
