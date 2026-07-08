@@ -27,7 +27,7 @@ const Footer = () => {
         </p>
       </div>
       <p>
-        © {currentYear} PizzaTel — a demo pizza shop. Not a real store.
+        © {currentYear} PizzaTel, a demo pizza shop. Not a real store.
       </p>
       <PlatformFlag />
     </S.Footer>

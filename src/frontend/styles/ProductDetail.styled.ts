@@ -5,8 +5,12 @@ import styled from 'styled-components';
 import Button from '../components/Button';
 
 export const ProductDetail = styled.div`
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px 20px;
+
   ${({ theme }) => theme.breakpoints.desktop} {
-    padding: 100px;
+    padding: 72px 40px;
   }
 `;
 
@@ -14,74 +18,92 @@ export const Container = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 28px;
+  align-items: start;
 
   ${({ theme }) => theme.breakpoints.desktop} {
-    grid-template-columns: 40% 60%;
+    grid-template-columns: 46% 1fr;
+    gap: 64px;
   }
 `;
 
 export const Image = styled.div<{ $src: string }>`
   width: 100%;
-  height: 150px;
-
-  background: url(${({ $src }) => $src}) no-repeat center;
-  background-size: contain;
+  height: 300px;
+  border-radius: ${({ theme }) => theme.radius.lg};
+  background:
+    url(${({ $src }) => $src}) no-repeat center,
+    ${({ theme }) => theme.colors.surfaceSunken};
+  background-size: cover;
+  border: 1px solid ${({ theme }) => theme.colors.line};
+  box-shadow: ${({ theme }) => theme.shadow.md};
 
   ${({ theme }) => theme.breakpoints.desktop} {
-    height: 500px;
-    background-position: top;
+    height: 480px;
+    position: sticky;
+    top: 100px;
   }
 `;
 
 export const Details = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 0 20px;
-`;
-
-export const AddToCart = styled(Button)`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  justify-content: center;
-  width: 100%;
-  font-size: ${({ theme }) => theme.sizes.dSmall};
-  font-weight: ${({ theme }) => theme.fonts.regular};
+  gap: 18px;
+  padding: 0;
 
   ${({ theme }) => theme.breakpoints.desktop} {
-    font-size: ${({ theme }) => theme.sizes.dMedium};
-    width: 220px;
+    padding-top: 8px;
   }
 `;
 
-export const Name = styled.h5`
-  font-size: ${({ theme }) => theme.sizes.dMedium};
-  margin: 0;
+export const AddToCart = styled(Button)`
+  align-self: stretch;
+  font-size: ${({ theme }) => theme.sizes.dSmall};
+  margin-top: 8px;
 
   ${({ theme }) => theme.breakpoints.desktop} {
-    font-size: ${({ theme }) => theme.sizes.dLarge};
+    align-self: flex-start;
+    padding: 0 40px;
+  }
+`;
+
+export const Name = styled.h1`
+  font-size: 30px;
+  margin: 0;
+  font-weight: 800;
+
+  ${({ theme }) => theme.breakpoints.desktop} {
+    font-size: 46px;
   }
 `;
 
 export const Text = styled.p`
   margin: 0;
+  font-family: 'Instrument Sans', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: ${({ theme }) => theme.colors.inkMuted};
 `;
 
-export const Description = styled(Text)`
+export const Description = styled.p`
   margin: 0;
-  color: ${({ theme }) => theme.colors.textLightGray};
-  font-weight: ${({ theme }) => theme.fonts.regular};
-
-  ${({ theme }) => theme.breakpoints.desktop} {
-    font-size: ${({ theme }) => theme.sizes.dMedium};
-  }
+  font-family: 'Instrument Sans', sans-serif;
+  color: ${({ theme }) => theme.colors.inkMuted};
+  font-weight: 400;
+  font-size: 17px;
+  line-height: 1.6;
+  max-width: 60ch;
 `;
 
-export const ProductPrice = styled(Text)`
-  font-weight: ${({ theme }) => theme.fonts.bold};
+export const ProductPrice = styled.p`
+  margin: 0;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 800;
+  font-size: 30px;
+  color: ${({ theme }) => theme.colors.brand};
 
   ${({ theme }) => theme.breakpoints.desktop} {
-    font-size: ${({ theme }) => theme.sizes.dLarge};
+    font-size: 38px;
   }
 `;
