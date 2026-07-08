@@ -75,9 +75,18 @@ const Apis = () => ({
       queryParams: { currencyCode },
     });
   },
-  listRecommendations(productIds: string[], currencyCode: string) {
-    // defaults so a stale session never emits the string "undefined" for these ids
-    const { storeId = '', profileId = 'guest', memberId = '' } = SessionGateway.getSession();
+  listRecommendations(
+    productIds: string[],
+    currencyCode: string,
+    ctx?: { profileId?: string; memberId?: string; storeId?: string }
+  ) {
+    // Prefer explicitly-passed identity (from SessionProvider, always current); fall
+    // back to the session read so callers without ctx still work. Defaults so a stale
+    // session never emits the string "undefined" for these ids.
+    const session = SessionGateway.getSession();
+    const profileId = ctx?.profileId ?? session.profileId ?? 'guest';
+    const memberId = ctx?.memberId ?? session.memberId ?? '';
+    const storeId = ctx?.storeId ?? session.storeId ?? '';
     return request<Product[]>({
       url: `${basePath}/recommendations`,
       queryParams: {

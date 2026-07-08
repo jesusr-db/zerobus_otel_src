@@ -5,6 +5,7 @@ import '../styles/globals.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App, { AppContext, AppProps } from 'next/app';
 import CurrencyProvider from '../providers/Currency.provider';
+import SessionProvider from '../providers/Session.provider';
 import CartProvider from '../providers/Cart.provider';
 import { ThemeProvider } from 'styled-components';
 import Theme from '../styles/Theme';
@@ -65,10 +66,12 @@ function MyApp({ Component, pageProps }: AppProps) {
       <OpenFeatureProvider>
         <QueryClientProvider client={queryClient}>
           <CurrencyProvider>
-            <CartProvider>
-              <Component {...pageProps} />
-              <AgentChat />
-            </CartProvider>
+            <SessionProvider>
+              <CartProvider>
+                <Component {...pageProps} />
+                <AgentChat />
+              </CartProvider>
+            </SessionProvider>
           </CurrencyProvider>
         </QueryClientProvider>
       </OpenFeatureProvider>

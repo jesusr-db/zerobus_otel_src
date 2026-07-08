@@ -51,21 +51,45 @@ const OrderTracker = ({ orderId }: { orderId: string }) => {
   if (!status) return <S.Tracker role="status" data-cy="order-tracker">Starting your order…</S.Tracker>;
 
   const curIdx = status.stages.indexOf(status.currentStage);
-  const breached =
-    status.elapsedSeconds > status.sosTargetSeconds && !TERMINAL_STAGES.has(status.currentStage);
+  const lastIdx = status.stages.length - 1;
+  const isTerminal = TERMINAL_STAGES.has(status.currentStage);
+  const breached = status.elapsedSeconds > status.sosTargetSeconds && !isTerminal;
+
+  // Progress across the rail (0..100). The vehicle and fill ride to the current
+  // node, reaching the end once the order hits a terminal stage.
+  const safeIdx = curIdx < 0 ? 0 : curIdx;
+  const progress = lastIdx <= 0 ? 100 : Math.round((safeIdx / lastIdx) * 100);
+
+  // Pickup orders end at a store, delivery orders arrive by vehicle.
+  const isPickup = status.stages.includes('ReadyForPickup');
+  const vehicle = isTerminal ? (isPickup ? '🏪' : '🎉') : isPickup ? '🍕' : '🚗';
 
   return (
     <S.Tracker role="status" data-cy="order-tracker">
-      <S.Stages>
-        {status.stages.map((st, i) => (
-          <S.Stage key={st} $done={i < curIdx} $active={i === curIdx} aria-current={i === curIdx ? 'step' : undefined} data-cy="tracker-stage">
-            {LABELS[st] ?? st}
-          </S.Stage>
-        ))}
-      </S.Stages>
-      {breached && (
-        <S.Breach>Running a little behind — thanks for your patience!</S.Breach>
-      )}
+      <S.Rail>
+        <S.RailTrack aria-hidden />
+        <S.RailFill $progress={progress} aria-hidden />
+        <S.Vehicle $progress={progress} aria-hidden>
+          {vehicle}
+        </S.Vehicle>
+        <S.Stages>
+          {status.stages.map((st, i) => {
+            const done = i < curIdx || (isTerminal && i <= curIdx);
+            const active = i === curIdx && !isTerminal;
+            return (
+              <S.Stage key={st} data-cy="tracker-stage" aria-current={i === curIdx ? 'step' : undefined}>
+                <S.StageDot $done={done} $active={active}>
+                  {done ? '✓' : i + 1}
+                </S.StageDot>
+                <S.StageLabel $done={done} $active={active}>
+                  {LABELS[st] ?? st}
+                </S.StageLabel>
+              </S.Stage>
+            );
+          })}
+        </S.Stages>
+      </S.Rail>
+      {breached && <S.Breach>Running a little behind. Thanks for your patience!</S.Breach>}
     </S.Tracker>
   );
 };

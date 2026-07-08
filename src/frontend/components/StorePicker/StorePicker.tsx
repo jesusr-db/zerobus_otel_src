@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect, useMemo, useState } from 'react';
-import SessionGateway from '../../gateways/Session.gateway';
+import { useSession } from '../../providers/Session.provider';
 import { CypressFields } from '../../utils/enums/CypressFields';
 import * as S from './StorePicker.styled';
 
@@ -10,11 +10,7 @@ interface Store { id: string; name: string; city: string; state: string; metro: 
 
 const StorePicker = () => {
   const [stores, setStores] = useState<Store[]>([]);
-  const [storeId, setStoreId] = useState('');
-
-  useEffect(() => {
-    setStoreId(SessionGateway.getSession().storeId);
-  }, []);
+  const { storeId, setStore } = useSession();
 
   useEffect(() => {
     fetch('/api/stores')
@@ -33,8 +29,7 @@ const StorePicker = () => {
   }, [stores]);
 
   const onChange = (value: string) => {
-    setStoreId(value);
-    SessionGateway.setSessionValue('storeId', value);
+    setStore(value);
   };
 
   return (
