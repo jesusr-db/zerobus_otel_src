@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import ApiGateway from '../gateways/Api.gateway';
 import { Ad, Money, Product } from '../protos/demo';
 import { useCurrency } from './Currency.provider';
+import { useSession } from './Session.provider';
 
 interface IContext {
   recommendedProductList: Product[];
@@ -27,6 +28,7 @@ export const useAd = () => useContext(Context);
 
 const AdProvider = ({ children, productIds, contextKeys }: IProps) => {
   const { selectedCurrency } = useCurrency();
+  const { profileId, memberId, storeId } = useSession();
   const { data: adList = [] } = useQuery({
     queryKey: ['ads', contextKeys],
     queryFn: async () => {
@@ -39,8 +41,8 @@ const AdProvider = ({ children, productIds, contextKeys }: IProps) => {
     refetchOnWindowFocus: false,
   });
   const { data: recommendedProductList = [] } = useQuery({
-    queryKey: ['recommendations', productIds, 'selectedCurrency', selectedCurrency],
-    queryFn: () => ApiGateway.listRecommendations(productIds, selectedCurrency),
+    queryKey: ['recommendations', productIds, 'selectedCurrency', selectedCurrency, profileId, memberId, storeId],
+    queryFn: () => ApiGateway.listRecommendations(productIds, selectedCurrency, { profileId, memberId, storeId }),
     refetchOnWindowFocus: false,
   });
 

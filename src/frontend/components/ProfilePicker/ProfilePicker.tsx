@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { useEffect, useState } from 'react';
-import SessionGateway from '../../gateways/Session.gateway';
+import { useSession } from '../../providers/Session.provider';
 import { CypressFields } from '../../utils/enums/CypressFields';
 import * as S from './ProfilePicker.styled';
 
@@ -10,11 +10,7 @@ interface Profile { id: string; name: string; member_id: string | null; tier: st
 
 const ProfilePicker = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profileId, setProfileId] = useState('guest');
-
-  useEffect(() => {
-    setProfileId(SessionGateway.getSession().profileId);
-  }, []);
+  const { profileId, setProfile } = useSession();
 
   useEffect(() => {
     fetch('/api/profiles')
@@ -24,10 +20,11 @@ const ProfilePicker = () => {
   }, []);
 
   const onChange = (value: string) => {
-    setProfileId(value);
     const picked = profiles.find(p => p.id === value);
-    SessionGateway.setSessionValue('profileId', value);
-    SessionGateway.setSessionValue('memberId', picked?.member_id ?? '');
+    // memberId == profileId in this data (contract §1.4); use the picked profile's
+    // member_id, else the profile id itself for a real pick, else empty for guest.
+    const memberId = picked?.member_id ?? (value === 'guest' ? '' : value);
+    setProfile(value, memberId);
   };
 
   return (
