@@ -9,10 +9,11 @@ const { CHECKOUT_ADDR = '' } = process.env;
 const client = new CheckoutServiceClient(CHECKOUT_ADDR, ChannelCredentials.createInsecure());
 
 const CheckoutGateway = () => ({
-  placeOrder(order: PlaceOrderRequest, ctx?: { storeId?: string; orderType?: string }) {
+  placeOrder(order: PlaceOrderRequest, ctx?: { storeId?: string; orderType?: string; memberId?: string }) {
     const metadata = new Metadata();
     if (ctx?.storeId) metadata.set('pizzatel-store-id', ctx.storeId);
     if (ctx?.orderType) metadata.set('pizzatel-order-type', ctx.orderType);
+    if (ctx?.memberId) metadata.set('pizzatel-member-id', ctx.memberId);
     return new Promise<PlaceOrderResponse>((resolve, reject) =>
       client.placeOrder(order, metadata, (error, response) => (error ? reject(error) : resolve(response)))
     );

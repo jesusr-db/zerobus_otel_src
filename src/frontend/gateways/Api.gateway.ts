@@ -53,12 +53,12 @@ const Apis = () => ({
   },
 
   placeOrder({ currencyCode, orderType, ...order }: PlaceOrderRequest & { currencyCode: string; orderType?: string }) {
-    // default to '' so a stale session missing storeId never sends the string "undefined"
-    const { storeId = '' } = SessionGateway.getSession();
+    // default to '' so a stale session missing storeId/memberId never sends the string "undefined"
+    const { storeId = '', memberId = '' } = SessionGateway.getSession();
     return request<IProductCheckout>({
       url: `${basePath}/checkout`,
       method: 'POST',
-      queryParams: { currencyCode, storeId, orderType: orderType ?? 'delivery' },
+      queryParams: { currencyCode, storeId, memberId, orderType: orderType ?? 'delivery' },
       body: order,
     });
   },
