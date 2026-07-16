@@ -13,11 +13,12 @@ type TResponse = IProductCheckout | Empty;
 const handler = async ({ method, body, query }: NextApiRequest, res: NextApiResponse<TResponse>) => {
   switch (method) {
     case 'POST': {
-      const { currencyCode = '', storeId = '', orderType = '' } = query;
+      const { currencyCode = '', storeId = '', orderType = '', memberId = '' } = query;
       const orderData = body as PlaceOrderRequest;
       const { order: { items = [], ...order } = {} } = await CheckoutGateway.placeOrder(orderData, {
         storeId: String(storeId),
         orderType: String(orderType),
+        memberId: String(memberId),
       });
 
       const productList: IProductCheckoutItem[] = await Promise.all(

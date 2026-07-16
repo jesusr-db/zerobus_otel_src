@@ -310,6 +310,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 	md, _ := metadata.FromIncomingContext(ctx)
 	storeID := firstMD(md, "pizzatel-store-id")
 	orderType := firstMD(md, "pizzatel-order-type")
+	memberID := firstMD(md, "pizzatel-member-id")
 
 	var err error
 	defer func() {
@@ -373,6 +374,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 
 	span.SetAttributes(
 		attribute.String("app.order.id", orderID.String()),
+		attribute.String("app.order.member_id", memberID),
 		attribute.Float64("app.shipping.amount", shippingCostFloat),
 		attribute.Float64("app.order.amount", totalPriceFloat),
 		attribute.Int("app.order.items.count", len(prep.orderItems)),
@@ -382,6 +384,7 @@ func (cs *checkout) PlaceOrder(ctx context.Context, req *pb.PlaceOrderRequest) (
 		ctx,
 		slog.LevelInfo, "order placed",
 		slog.String("app.order.id", orderID.String()),
+		slog.String("app.order.member_id", memberID),
 		slog.Float64("app.shipping.amount", shippingCostFloat),
 		slog.Float64("app.order.amount", totalPriceFloat),
 		slog.Int("app.order.items.count", len(prep.orderItems)),
