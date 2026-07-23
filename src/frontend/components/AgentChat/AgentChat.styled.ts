@@ -382,3 +382,76 @@ export const ModalBody = styled.div`
   padding: 18px;
   background: ${({ theme }) => theme.colors.surfaceSunken};
 `;
+
+export const RecoList = styled.div`
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+export const RecoCard = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  border: 1px solid ${({ theme }) => theme.colors.line};
+  border-radius: ${({ theme }) => theme.radius.md};
+  padding: 10px 12px;
+  box-shadow: ${({ theme }) => theme.shadow.sm};
+`;
+
+export const RecoInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-family: 'Instrument Sans', sans-serif;
+`;
+
+export const RecoName = styled.span`
+  font-size: 14px;
+  font-weight: 700;
+  color: ${({ theme }) => theme.colors.ink};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+export const RecoPrice = styled.span`
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.inkMuted};
+`;
+
+export const RecoAddButton = styled.button`
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid ${({ theme }) => theme.colors.brand};
+  background: ${({ theme }) => theme.colors.brand};
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.16s ${({ theme }) => theme.ease}, background-color 0.16s ${({ theme }) => theme.ease};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: ${({ theme }) => theme.colors.brandDark};
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+  &:focus-visible {
+    outline: 3px solid ${({ theme }) => theme.colors.brandSoft};
+    outline-offset: 2px;
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`;

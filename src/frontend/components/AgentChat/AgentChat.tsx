@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
 import { useSpeechInput } from './useSpeechInput';
 import { useRouter } from 'next/router';
@@ -62,7 +62,10 @@ const AgentChat = () => {
       setBusy(true);
       try {
         const res: AgentTurnResult = await ApiGateway.sendAgentMessage(next);
-        setMessages(m => [...m, { role: 'assistant', content: res.reply }]);
+        setMessages(m => [
+          ...m,
+          { role: 'assistant', content: res.reply, recommendations: res.recommendations },
+        ]);
         setProposal(res.priced && res.priced.lines.length ? res.priced : undefined);
       } catch {
         setMessages(m => [...m, { role: 'assistant', content: 'Something went wrong. Please try again.' }]);
@@ -110,6 +113,13 @@ const AgentChat = () => {
     }
   }, [proposal, busy, emptyCart, addItem, placeOrder, selectedCurrency, push]);
   const onChange = useCallback(() => setProposal(undefined), []);
+
+  const onAddRecommendation = useCallback(
+    (productId: string) => {
+      void addItem({ productId, quantity: 1 });
+    },
+    [addItem]
+  );
 
   const onCheckoutSubmit = useCallback(
     async ({
@@ -167,9 +177,30 @@ const AgentChat = () => {
           <S.Bubble $role="assistant">Hi there! Craving something? Tell me what you would like and I will build your order.</S.Bubble>
         )}
         {messages.map((m, i) => (
-          <S.Bubble key={i} $role={m.role}>
-            {m.content}
-          </S.Bubble>
+          <Fragment key={i}>
+            <S.Bubble $role={m.role}>{m.content}</S.Bubble>
+            {m.recommendations && m.recommendations.length > 0 && (
+              <S.RecoList>
+                {m.recommendations.map(rec => (
+                  <S.RecoCard key={rec.productId}>
+                    <S.RecoInfo>
+                      <S.RecoName>{rec.name}</S.RecoName>
+                      <S.RecoPrice>
+                        {getSymbolFromCurrency(selectedCurrency) || selectedCurrency} {rec.unitPrice.toFixed(2)}
+                      </S.RecoPrice>
+                    </S.RecoInfo>
+                    <S.RecoAddButton
+                      type="button"
+                      aria-label={`Add ${rec.name} to cart`}
+                      onClick={() => onAddRecommendation(rec.productId)}
+                    >
+                      +
+                    </S.RecoAddButton>
+                  </S.RecoCard>
+                ))}
+              </S.RecoList>
+            )}
+          </Fragment>
         ))}
         {busy && (
           <S.Typing aria-label="Assistant is typing">
