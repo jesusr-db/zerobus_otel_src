@@ -26,3 +26,18 @@ describe('mockAgentRespond', () => {
     expect(out.agentTraceId).toMatch(/^mock-/);
   });
 });
+
+describe('mockAgentRespond — recommendations', () => {
+  const ctx = { profileId: 'guest', storeId: '', memberId: '', userId: '', currencyCode: 'USD' };
+
+  it('emits recommendations when the user asks for recommendations', () => {
+    const reply = mockAgentRespond([{ role: 'user', content: 'what do you recommend?' }], ctx);
+    expect(reply.recommendations && reply.recommendations.length).toBeGreaterThan(0);
+    expect(Number.isInteger(reply.recommendations![0].menuItemId)).toBe(true);
+  });
+
+  it('does not emit recommendations on a plain greeting', () => {
+    const reply = mockAgentRespond([{ role: 'user', content: 'hello there' }], ctx);
+    expect(reply.recommendations).toBeUndefined();
+  });
+});
