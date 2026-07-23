@@ -14,6 +14,10 @@ import type { AgentChatMessage } from '../../utils/agent/agentContract';
 import type { AgentTurnResult } from '../../services/Agent.service';
 import type { PricedProposal } from '../../utils/agent/pricing';
 import * as S from './AgentChat.styled';
+import CheckoutModal from './CheckoutModal';
+import { cartItemCount, cartSubtotal } from '../../utils/cart/cartSummary';
+import getSymbolFromCurrency from 'currency-symbol-map';
+import type { IFormData } from '../CheckoutForm/CheckoutForm';
 
 const DEMO_CHECKOUT = {
   email: 'someone@example.com',
@@ -29,8 +33,9 @@ const AgentChat = () => {
   const [proposal, setProposal] = useState<PricedProposal | undefined>();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { supported: speechSupported, listening, toggle: toggleSpeech } = useSpeechInput(setInput);
-  const { emptyCart, addItem, placeOrder } = useCart();
+  const { cart, emptyCart, addItem, placeOrder } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,6 +111,35 @@ const AgentChat = () => {
   }, [proposal, busy, emptyCart, addItem, placeOrder, selectedCurrency, push]);
   const onChange = useCallback(() => setProposal(undefined), []);
 
+  const onCheckoutSubmit = useCallback(
+    async ({
+      orderType,
+      email,
+      state,
+      streetAddress,
+      country,
+      city,
+      zipCode,
+      creditCardCvv,
+      creditCardExpirationMonth,
+      creditCardExpirationYear,
+      creditCardNumber,
+    }: IFormData) => {
+      const { userId } = SessionGateway.getSession();
+      const order = await placeOrder({
+        userId,
+        email,
+        address: { streetAddress, state, country, city, zipCode },
+        userCurrency: selectedCurrency,
+        creditCard: { creditCardCvv, creditCardExpirationMonth, creditCardExpirationYear, creditCardNumber },
+        orderType,
+      } as PlaceOrderArg);
+      setCheckoutOpen(false);
+      push({ pathname: `/cart/checkout/${order.orderId}`, query: { order: JSON.stringify(order) } });
+    },
+    [placeOrder, selectedCurrency, push]
+  );
+
   if (!enabled) return null;
 
   if (!open) {
@@ -175,6 +209,19 @@ const AgentChat = () => {
         )}
         <div ref={messagesEndRef} />
       </S.Messages>
+      {cart.items.length > 0 && (
+        <S.CheckoutBar>
+          <S.CheckoutBarSummary>
+            {cartItemCount(cart.items)} item{cartItemCount(cart.items) === 1 ? '' : 's'} in cart
+            <strong>
+              {getSymbolFromCurrency(selectedCurrency) || selectedCurrency} {cartSubtotal(cart.items).toFixed(2)}
+            </strong>
+          </S.CheckoutBarSummary>
+          <S.Button type="button" onClick={() => setCheckoutOpen(true)}>
+            Check out
+          </S.Button>
+        </S.CheckoutBar>
+      )}
       <S.InputRow
         onSubmit={e => {
           e.preventDefault();
@@ -196,6 +243,7 @@ const AgentChat = () => {
           Send
         </S.Button>
       </S.InputRow>
+      {checkoutOpen && <CheckoutModal onClose={() => setCheckoutOpen(false)} onSubmit={onCheckoutSubmit} />}
     </S.Panel>
   );
 };

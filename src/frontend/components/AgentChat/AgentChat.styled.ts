@@ -313,3 +313,72 @@ export const CloseButton = styled.button`
     outline-offset: 2px;
   }
 `;
+
+export const CheckoutBar = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  border-top: 1px solid ${({ theme }) => theme.colors.line};
+`;
+
+export const CheckoutBarSummary = styled.div`
+  display: flex;
+  flex-direction: column;
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 13px;
+  color: ${({ theme }) => theme.colors.inkMuted};
+
+  strong {
+    font-size: 15px;
+    font-weight: 800;
+    color: ${({ theme }) => theme.colors.ink};
+  }
+`;
+
+export const ModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(20, 18, 16, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation: ${bubbleIn} 0.18s ${({ theme }) => theme.ease} both;
+  }
+`;
+
+export const ModalPanel = styled.div`
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  background: ${({ theme }) => theme.colors.surfaceRaised};
+  border: 1px solid ${({ theme }) => theme.colors.line};
+  border-radius: ${({ theme }) => theme.radius.lg};
+  box-shadow: ${({ theme }) => theme.shadow.lg};
+  overflow: hidden;
+`;
+
+export const ModalHeader = styled.div`
+  padding: 16px 16px 16px 18px;
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  background: ${({ theme }) => theme.colors.brand};
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+export const ModalBody = styled.div`
+  overflow-y: auto;
+  padding: 18px;
+  background: ${({ theme }) => theme.colors.surfaceSunken};
+`;
