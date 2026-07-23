@@ -18,6 +18,7 @@ The storefront mounts a chat widget on login. It calls a Databricks Model Servin
 
 | Date | Team | Note |
 |------|------|------|
+| 2026-07-23 | web | 🟨 **New channel shipped: `custom_outputs.recommendations` (browse-and-add cards).** Added a second structured channel alongside `propose_order` — see new **§3.3**. On recommend-intent turns the web now renders per-product cards with a "+" add-to-cart button; the BFF resolves each `menu_item_id` against the live `ProductCatalog`, **drops unmappable ids** (never faked), and re-prices (BFF pricing authority, same rule as `propose_order`). Shape: `custom_outputs.recommendations: [{ "menu_item_id": <int>, "quantity"?: <int, default 1> }]` — purely additive, no request/response-shape change otherwise. Adding a card makes the new in-chat checkout bar/modal appear (cart-state driven). Behind the `agentEnabled` flag; **mock-backed today** (`utils/agent/mockAgent.ts` emits ids 1+14 on recommend-intent), verified end-to-end in mock mode. **Ask: please populate `custom_outputs.recommendations` on recommend-intent turns** using the same `menu_item_id` space as `propose_order`; until then live turns show no cards (safe degradation). NB the open **§0 menu-id mapping divergence** applies here too — unmappable/wrong ids will silently drop or mis-card, so the mapping fix benefits both channels. |
 | 2026-06-21 | web | 🟩 **Trace-stitch verified end-to-end + 🟥 propose_order divergence RECURS.** Confirmed your tracing rollout: agent returns real `custom_outputs.mlflow_trace_id` (e.g. `tr-bf79e7c068696ba9ed4ad12d7bd9dd42`), the BFF now stamps `agent.mlflow.trace_id` on its OTel spans (verified live in `jmrdemo.zerobus.otel_spans`), and the traces are retrievable from experiment `3025255582876496`; inference table `jmrdemo.synth_silver.commerce_agent_payload_payload` is populating. Join key is live both directions — thank you. **BUT:** ran 2026-06-21 user journeys and `propose_order` divergence is **back for some items** despite the §0 "5/5 fixed" (that test only covered Cheese+Sprite). Asking for **Large Pan MeatZZa (catalog id 4)**, `propose_order` returned the WRONG id in **4/5 runs**: `13` (Medium Thin-Crust Cheese), `10` (Large BBQ Chicken), and once `2003` (outside the storefront catalog → empty priced lines → order silently can't populate). Pepperoni (1) & Cheese (2) map correctly. Diverged ids are *valid* products, so the user would be silently shown the wrong item. Hypothesis: the agent's `menu_item_id` namespace doesn't reliably map to the storefront `ProductCatalog` ids — only some coincide. **Please re-check the menu-id mapping for non-pepperoni/cheese items.** Repro + diverged ids are on the BFF catch-net span (`app.agent.proposal_item_ids/names`), now joinable to your MLflow traces. Full results: `docs/journey-test-results-2026-06-21.md`. |
 | 2026-06-21 | model | 🟩 **Trace-stitch is LIVE — `mlflow_trace_id` is now a real join key.** Enabled in-serving MLflow tracing on `synth_qsr-commerce-agent`: traces log to the dedicated experiment `/Shared/qsr-commerce-agent-traces` (id `3025255582876496`). Verified — responses now return `custom_outputs.mlflow_trace_id` like `tr-a9509b01bc310e941caedea16e544ff7` (no more `MLFLOW_NO_OP_SPAN_TRACE_ID` sentinel), and the matching traces appear in the experiment. **Your trace-stitch wiring lights up automatically — start stamping `agent.mlflow.trace_id` from the returned value (it's no longer the sentinel).** Also enabled **inference tables** (AI Gateway `inference_table_config`) → every request/response logs to `jmrdemo.synth_silver.commerce_agent_payload_payload` (async batch flush, so rows lag first traffic). Note: `app_trace_context` you send is recorded as the MLflow trace tag `app.trace_id`, so the join works both directions. §3.2 + §6 → 🟩. No request/response shape change. |
 | 2026-06-18 | web | 🟩 **Fix validated + observability shipped.** Re-ran the exact scenario (recommend Ultimate Pepperoni → customer declines → orders Large Cheese + 2-Liter Sprite → "yes") against the redeployed endpoint: **4/4 returned only Cheese (id 2) + Sprite (id 52)** — matches your 5/5. **Added the catch-net you asked for:** the BFF now stamps `app.agent.proposal_item_count` / `app.agent.proposal_item_ids` / `app.agent.proposal_item_names` on the app span (ids from your `propose_order`, names catalog-resolved) → every order's proposed items land in zerobus, so any future card-vs-chat divergence has a concrete repro without waiting on §6 in-serving tracing. Agreed this is a strong signal, not proof (LLM non-determinism) — the span data is our standing monitor. No contract/shape change. |
@@ -167,6 +168,32 @@ The storefront already emits an end-to-end OTel trace (browser → BFF → check
 - Agent: record it as an MLflow trace tag **`app.trace_id`** (and/or start the trace as a child of that context).
 - Agent: **return your MLflow `trace_id`** in the response so the web BFF can stamp `agent.mlflow.trace_id` on its OTel span.
 - Result: agent traces stay in the **MLflow experiment** (MLflow eval/scorers intact), app traces stay in **zerobus**, and the two are JOIN-able on trace ID. No exporter collision.
+
+### 3.3 `custom_outputs.recommendations` — browse-and-add cards — 🟨 WEB SHIPPED, awaiting model population (2026-07-23)
+
+**Purpose.** On a recommend-intent turn ("what do you recommend?", "suggest something", "what's popular?"), the agent MAY return `custom_outputs.recommendations` so the web renders per-product **cards with a "+" add-to-cart button**. This is distinct from `propose_order`: `propose_order` is a full priced order awaiting explicit approval (the confirm card), whereas `recommendations` are individual browse-and-add suggestions the customer can add to the cart one at a time. Both channels can appear across a conversation; a single turn may carry either, both, or neither.
+
+**Shape.**
+```json
+"custom_outputs": {
+  "recommendations": [
+    { "menu_item_id": 1, "quantity": 2 },
+    { "menu_item_id": 14 }
+  ]
+}
+```
+- `menu_item_id`: **integer, required** (same catalog id space as `propose_order`).
+- `quantity`: **integer, optional — defaults to 1** on the web side when absent or non-integer.
+- Indicative prices, if the agent includes any, are **ignored** — the BFF re-prices against the live catalog (same pricing-authority rule as `propose_order`, §3.1).
+
+**Web behavior (shipped 2026-07-23).**
+- The BFF (`/api/agent-chat`) resolves each `menu_item_id` via the live `ProductCatalog` (`ProductCatalogService.getProduct`), **drops ids absent from the catalog** (never faked), and returns priced `recommendations: PricedLine[]` (`{ productId, name, quantity, unitPrice, lineTotal }`) on the turn result.
+- Malformed / null entries are dropped; if none survive, the field is omitted entirely (parser mirrors the `propose_order` discipline).
+- The chat renders one card per priced recommendation, each with a round "+" that calls the existing cart `addItem({ productId, quantity: 1 })`. Adding an item makes the in-chat checkout bar appear (cart-state driven).
+
+**Mock parity.** The offline mock agent (`utils/agent/mockAgent.ts`) emits this channel on recommend-intent (ids `1` + `14`), so the feature is fully testable without the endpoint — the storefront runs the whole flow in mock mode (`AGENT_ENDPOINT_URL` unset).
+
+**Ask to the model team.** Please populate `custom_outputs.recommendations` on recommend-intent turns using the same `menu_item_id` catalog space as `propose_order`. No request-shape change; no response-shape change beyond this additive `custom_outputs` key. Until then, live turns simply show no cards (safe degradation) while mock mode exercises the path.
 
 ## 4. What the website PROVIDES (so you can build to it)
 - **Calls** `POST /serving-endpoints/<NAME>/invocations` per chat turn with the agreed payload, including the synth-aligned `profile_id`/`member_id`/`store_id` and `app_trace_context`.
