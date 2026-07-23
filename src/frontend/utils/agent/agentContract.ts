@@ -1,6 +1,8 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type { PricedLine } from './pricing';
+
 export interface AgentSessionContext {
   profileId: string;
   storeId: string;
@@ -12,9 +14,17 @@ export interface AgentSessionContext {
 export interface AgentChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  // Priced recommendation cards attached to an assistant turn (Phase 2). The
+  // BFF resolves + prices these against the live catalog before they reach here.
+  recommendations?: PricedLine[];
 }
 
 export interface ProposedItem {
+  menuItemId: number;
+  quantity: number;
+}
+
+export interface AgentRecommendation {
   menuItemId: number;
   quantity: number;
 }
@@ -27,6 +37,7 @@ export interface AgentProposal {
 export interface AgentReply {
   reply: string;
   proposal?: AgentProposal;
+  recommendations?: AgentRecommendation[];
   agentTraceId?: string;
   coldStart?: boolean;
   fallback?: boolean;
@@ -122,6 +133,23 @@ export function parseAgentResponse(raw: unknown): AgentReply {
     if (items.length) proposal = { items, orderType: typeof p.order_type === 'string' ? p.order_type : 'delivery' };
   }
 
+  // Parse the recommendations channel (Phase 2). Same discipline as propose_order:
+  // integer menu_item_id required, quantity optional (default 1), malformed
+  // entries dropped. The agent's indicative prices (if any) are ignored — the BFF
+  // re-prices against the live catalog.
+  let recommendations: AgentRecommendation[] | undefined;
+  const rawRecs = co.recommendations;
+  if (Array.isArray(rawRecs)) {
+    const recs: AgentRecommendation[] = rawRecs
+      .map(it => it as Record<string, unknown> | null)
+      .filter((it): it is Record<string, unknown> => it != null && Number.isInteger(it.menu_item_id))
+      .map(it => ({
+        menuItemId: it.menu_item_id as number,
+        quantity: Number.isInteger(it.quantity) ? (it.quantity as number) : 1,
+      }));
+    if (recs.length) recommendations = recs;
+  }
+
   const text = extractText(r);
   // Degrade to the fallback only when there is NEITHER assistant text NOR a
   // usable proposal — a proposal alone is enough to keep going.
@@ -129,6 +157,7 @@ export function parseAgentResponse(raw: unknown): AgentReply {
 
   const out: AgentReply = { reply: text ?? PROPOSAL_ONLY_REPLY };
   if (proposal) out.proposal = proposal;
+  if (recommendations) out.recommendations = recommendations;
   if (typeof co.mlflow_trace_id === 'string' && co.mlflow_trace_id !== MLFLOW_NOOP_TRACE_ID) {
     out.agentTraceId = co.mlflow_trace_id;
   }

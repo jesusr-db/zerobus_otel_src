@@ -153,4 +153,36 @@ describe('parseAgentResponse', () => {
     });
     expect(out.reply).toBe('the real answer');
   });
+
+  describe('parseAgentResponse — recommendations channel', () => {
+    it('parses custom_outputs.recommendations into menuItemId/quantity, defaulting quantity to 1', () => {
+      const raw = {
+        output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Here are some picks.' }] }],
+        custom_outputs: {
+          recommendations: [{ menu_item_id: 1, quantity: 2 }, { menu_item_id: 14 }],
+        },
+      };
+      const reply = parseAgentResponse(raw);
+      expect(reply.recommendations).toEqual([
+        { menuItemId: 1, quantity: 2 },
+        { menuItemId: 14, quantity: 1 },
+      ]);
+    });
+
+    it('omits recommendations when the channel is absent', () => {
+      const raw = {
+        output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Hello.' }] }],
+        custom_outputs: {},
+      };
+      expect(parseAgentResponse(raw).recommendations).toBeUndefined();
+    });
+
+    it('drops malformed recommendation entries and omits the field if none survive', () => {
+      const raw = {
+        output: [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Hmm.' }] }],
+        custom_outputs: { recommendations: [{ menu_item_id: 'x' }, { quantity: 3 }, null] },
+      };
+      expect(parseAgentResponse(raw).recommendations).toBeUndefined();
+    });
+  });
 });
