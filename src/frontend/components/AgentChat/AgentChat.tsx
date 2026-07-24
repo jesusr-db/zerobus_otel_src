@@ -1,7 +1,7 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useBooleanFlagValue } from '@openfeature/react-sdk';
 import { useSpeechInput } from './useSpeechInput';
 import { useRouter } from 'next/router';
@@ -14,6 +14,10 @@ import type { AgentChatMessage } from '../../utils/agent/agentContract';
 import type { AgentTurnResult } from '../../services/Agent.service';
 import type { PricedProposal } from '../../utils/agent/pricing';
 import * as S from './AgentChat.styled';
+import CheckoutModal from './CheckoutModal';
+import { cartItemCount, cartSubtotal } from '../../utils/cart/cartSummary';
+import getSymbolFromCurrency from 'currency-symbol-map';
+import type { IFormData } from '../CheckoutForm/CheckoutForm';
 
 const DEMO_CHECKOUT = {
   email: 'someone@example.com',
@@ -29,8 +33,9 @@ const AgentChat = () => {
   const [proposal, setProposal] = useState<PricedProposal | undefined>();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const { supported: speechSupported, listening, toggle: toggleSpeech } = useSpeechInput(setInput);
-  const { emptyCart, addItem, placeOrder } = useCart();
+  const { cart, emptyCart, addItem, placeOrder } = useCart();
   const { selectedCurrency } = useCurrency();
   const { push } = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -57,7 +62,10 @@ const AgentChat = () => {
       setBusy(true);
       try {
         const res: AgentTurnResult = await ApiGateway.sendAgentMessage(next);
-        setMessages(m => [...m, { role: 'assistant', content: res.reply }]);
+        setMessages(m => [
+          ...m,
+          { role: 'assistant', content: res.reply, recommendations: res.recommendations },
+        ]);
         setProposal(res.priced && res.priced.lines.length ? res.priced : undefined);
       } catch {
         setMessages(m => [...m, { role: 'assistant', content: 'Something went wrong. Please try again.' }]);
@@ -106,6 +114,42 @@ const AgentChat = () => {
   }, [proposal, busy, emptyCart, addItem, placeOrder, selectedCurrency, push]);
   const onChange = useCallback(() => setProposal(undefined), []);
 
+  const onAddRecommendation = useCallback(
+    (productId: string) => {
+      void addItem({ productId, quantity: 1 });
+    },
+    [addItem]
+  );
+
+  const onCheckoutSubmit = useCallback(
+    async ({
+      orderType,
+      email,
+      state,
+      streetAddress,
+      country,
+      city,
+      zipCode,
+      creditCardCvv,
+      creditCardExpirationMonth,
+      creditCardExpirationYear,
+      creditCardNumber,
+    }: IFormData) => {
+      const { userId } = SessionGateway.getSession();
+      const order = await placeOrder({
+        userId,
+        email,
+        address: { streetAddress, state, country, city, zipCode },
+        userCurrency: selectedCurrency,
+        creditCard: { creditCardCvv, creditCardExpirationMonth, creditCardExpirationYear, creditCardNumber },
+        orderType,
+      } as PlaceOrderArg);
+      setCheckoutOpen(false);
+      push({ pathname: `/cart/checkout/${order.orderId}`, query: { order: JSON.stringify(order) } });
+    },
+    [placeOrder, selectedCurrency, push]
+  );
+
   if (!enabled) return null;
 
   if (!open) {
@@ -133,9 +177,30 @@ const AgentChat = () => {
           <S.Bubble $role="assistant">Hi there! Craving something? Tell me what you would like and I will build your order.</S.Bubble>
         )}
         {messages.map((m, i) => (
-          <S.Bubble key={i} $role={m.role}>
-            {m.content}
-          </S.Bubble>
+          <Fragment key={i}>
+            <S.Bubble $role={m.role}>{m.content}</S.Bubble>
+            {m.recommendations && m.recommendations.length > 0 && (
+              <S.RecoList>
+                {m.recommendations.map(rec => (
+                  <S.RecoCard key={rec.productId}>
+                    <S.RecoInfo>
+                      <S.RecoName>{rec.name}</S.RecoName>
+                      <S.RecoPrice>
+                        {getSymbolFromCurrency(selectedCurrency) || selectedCurrency} {rec.unitPrice.toFixed(2)}
+                      </S.RecoPrice>
+                    </S.RecoInfo>
+                    <S.RecoAddButton
+                      type="button"
+                      aria-label={`Add ${rec.name} to cart`}
+                      onClick={() => onAddRecommendation(rec.productId)}
+                    >
+                      +
+                    </S.RecoAddButton>
+                  </S.RecoCard>
+                ))}
+              </S.RecoList>
+            )}
+          </Fragment>
         ))}
         {busy && (
           <S.Typing aria-label="Assistant is typing">
@@ -175,6 +240,19 @@ const AgentChat = () => {
         )}
         <div ref={messagesEndRef} />
       </S.Messages>
+      {cart.items.length > 0 && (
+        <S.CheckoutBar>
+          <S.CheckoutBarSummary>
+            {cartItemCount(cart.items)} item{cartItemCount(cart.items) === 1 ? '' : 's'} in cart
+            <strong>
+              {getSymbolFromCurrency(selectedCurrency) || selectedCurrency} {cartSubtotal(cart.items).toFixed(2)}
+            </strong>
+          </S.CheckoutBarSummary>
+          <S.Button type="button" onClick={() => setCheckoutOpen(true)}>
+            Check out
+          </S.Button>
+        </S.CheckoutBar>
+      )}
       <S.InputRow
         onSubmit={e => {
           e.preventDefault();
@@ -196,6 +274,7 @@ const AgentChat = () => {
           Send
         </S.Button>
       </S.InputRow>
+      {checkoutOpen && <CheckoutModal onClose={() => setCheckoutOpen(false)} onSubmit={onCheckoutSubmit} />}
     </S.Panel>
   );
 };

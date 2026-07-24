@@ -7,10 +7,25 @@ import type { AgentChatMessage, AgentReply, AgentSessionContext } from './agentC
 // network, no randomness. menu_item_id 1 = "Large Hand-Tossed Pepperoni",
 // 14 = a sides item (aligned with the catalog / recommender id space).
 const ORDER_INTENT = /\b(order|buy|get|want|add|cart|checkout|hungry)\b/i;
+const RECOMMEND_INTENT = /\b(recommend|recommendation|suggest|suggestion|popular|what should)\b/i;
 
 export function mockAgentRespond(messages: AgentChatMessage[], ctx: AgentSessionContext): AgentReply {
   const last = [...messages].reverse().find(m => m.role === 'user')?.content ?? '';
   const who = ctx.profileId && ctx.profileId !== 'guest' ? ` (profile ${ctx.profileId})` : '';
+
+  if (RECOMMEND_INTENT.test(last)) {
+    return {
+      // Names + prices come from the live catalog on the BFF; the bubble stays
+      // generic so it never drifts from the menu. Ids align with the catalog /
+      // recommender id space (1 = pepperoni, 14 = a sides item).
+      reply: 'Here are a few picks you might like — tap "+" to add any of them to your cart.',
+      recommendations: [
+        { menuItemId: 1, quantity: 1 },
+        { menuItemId: 14, quantity: 1 },
+      ],
+      agentTraceId: `mock-${messages.length}`,
+    };
+  }
 
   if (!ORDER_INTENT.test(last)) {
     return {

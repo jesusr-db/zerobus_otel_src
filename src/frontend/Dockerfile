@@ -3,6 +3,9 @@
 
 FROM docker.io/library/node:22-slim AS builder
 
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY}
+
 WORKDIR /app
 
 COPY ./src/frontend/package.json package.json
@@ -20,6 +23,7 @@ COPY ./src/frontend/styles/ styles/
 COPY ./src/frontend/types/ types/
 
 COPY ./src/frontend/utils/agent/ utils/agent/
+COPY ./src/frontend/utils/cart/ utils/cart/
 COPY ./src/frontend/utils/enums/ utils/enums/
 COPY ./src/frontend/utils/telemetry/ utils/telemetry/
 COPY ./src/frontend/utils/imageLoader.js utils/imageLoader.js
@@ -34,6 +38,9 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 
 FROM docker.io/library/node:22-slim AS deps
+
+ARG NPM_CONFIG_REGISTRY=https://registry.npmjs.org/
+ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY}
 
 WORKDIR /app
 
